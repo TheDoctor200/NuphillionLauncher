@@ -144,6 +144,7 @@ mod_manager = ModManager(appData)
 
 def main(page: ft.Page):
     page.title = "Nuphillion Mod Manager"
+    page.window_title = "Nuphillion Mod Manager"  # This sets the window border title
     page.bgcolor = "#006064"
     page.window_width = 900
     page.window_height = 800
