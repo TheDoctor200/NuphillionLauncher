@@ -146,26 +146,40 @@ def main(page: ft.Page):
     page.title = "Nuphillion Mod Manager"
     page.window_title = "Nuphillion Mod Manager"
     page.bgcolor = "#006064"
-    page.window_width = 900
-    page.window_height = 800
     page.vertical_alignment = ft.MainAxisAlignment.CENTER
     page.padding = 0
 
-    # Background image
     ASSETS_DIR = os.path.join(os.path.dirname(__file__), "assets")
     bg_path = os.path.join(ASSETS_DIR, "holo_table.jpg")
     icon_path = os.path.join(ASSETS_DIR, "The_Vanquished.png")
+
+    # Get background image size
+    bg_width, bg_height = 900, 800  # fallback default
+    if os.path.exists(bg_path):
+        try:
+            from PIL import Image
+            with Image.open(bg_path) as img:
+                bg_width, bg_height = img.size
+        except Exception:
+            pass
+
+    page.window_width = bg_width
+    page.window_height = bg_height
 
     # Prepare icon if exists
     icon = None
     if os.path.exists(icon_path):
         icon = ft.Container(
-            content=ft.Image(src=icon_path, width=64, height=64),
-            alignment=ft.alignment.top_right,
+            content=ft.Image(
+                src=icon_path,
+                width=80,
+                height=80,
+                fit=ft.ImageFit.CONTAIN,
+            ),
+            alignment=ft.alignment.top_left,
             padding=20,
         )
 
-    # Main content column
     status_text = ft.Text("Welcome to Nuphillion Mod Manager!", color="white", size=16)
     progress_bar = ft.ProgressBar(width=500, value=0)
 
@@ -216,22 +230,25 @@ def main(page: ft.Page):
         create_button("Open Discord", open_discord, "#6200EE"),
     ], spacing=10, alignment=ft.MainAxisAlignment.CENTER)
 
-    content = ft.Column([
-        ft.Text("Nuphillion Mod Manager", size=24, weight="bold", color="white"),
-        status_text,
-        progress_bar,
-        buttons,
-        ft.Text("Developed by CutesyThrower12", size=12, color="white")
-    ], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER)
+    # Move UI elements down by wrapping in a Container with top padding
+    content = ft.Container(
+        content=ft.Column([
+            ft.Text("Nuphillion Mod Manager", size=24, weight="bold", color="white"),
+            status_text,
+            progress_bar,
+            buttons,
+            ft.Text("Developed by CutesyThrower12", size=12, color="white")
+        ], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+        padding=ft.padding.only(top=bg_height // 3)  # Move UI elements down by 1/3 of image height
+    )
 
-    # Stack background, content, and icon
     stack_children = []
     if os.path.exists(bg_path):
         stack_children.append(
             ft.Image(
                 src=bg_path,
-                width=page.window_width,
-                height=page.window_height,
+                width=bg_width,
+                height=bg_height,
                 fit=ft.ImageFit.COVER,
                 opacity=0.7
             )
