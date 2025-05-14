@@ -277,15 +277,23 @@ def main(page: ft.Page):
         import webbrowser
         webbrowser.open("https://github.com/TheDoctor200/NuphillionLauncher")
 
-    def create_button(text, on_click, color):
-        return ft.ElevatedButton(text, on_click=on_click, bgcolor=color, color="white", width=250, height=50)
+    def create_button(text, on_click, color, icon=None):
+        return ft.ElevatedButton(
+            text,
+            on_click=on_click,
+            bgcolor=color,
+            color="white",
+            width=250,
+            height=50,
+            icon=icon
+        )
 
     buttons = ft.Column([
-        create_button("Install Mod", install_mod_click, "#00796B"),
-        create_button("Uninstall Mod", uninstall_mod_click, "#D32F2F"),
-        create_button("Check Status", check_status_click, "#1976D2"),
-        create_button("Update App", update_app_click, "#FF9800"),  # Now calls direct updater
-        create_button("Open Discord", open_discord, "#6200EE"),
+        create_button("Install Mod", install_mod_click, "#00796B", ft.icons.DOWNLOAD),
+        create_button("Uninstall Mod", uninstall_mod_click, "#D32F2F", ft.icons.DELETE_FOREVER),
+        create_button("Check Status", check_status_click, "#1976D2", ft.icons.INFO),
+        create_button("Update App", update_app_click, "#FF9800", ft.icons.UPGRADE),
+        create_button("Open Discord", open_discord, "#6200EE", ft.icons.CHAT),
     ], spacing=10, alignment=ft.MainAxisAlignment.CENTER)
 
     # Center UI elements vertically and horizontally
