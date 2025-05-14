@@ -230,7 +230,7 @@ def main(page: ft.Page):
         create_button("Open Discord", open_discord, "#6200EE"),
     ], spacing=10, alignment=ft.MainAxisAlignment.CENTER)
 
-    # Move UI elements down by wrapping in a Container with top padding
+    # Center UI elements vertically and horizontally
     content = ft.Container(
         content=ft.Column([
             ft.Text("Nuphillion Mod Manager", size=24, weight="bold", color="white"),
@@ -238,8 +238,11 @@ def main(page: ft.Page):
             progress_bar,
             buttons,
             ft.Text("Developed by CutesyThrower12", size=12, color="white")
-        ], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
-        padding=ft.padding.only(top=bg_height // 3)  # Move UI elements down by 1/3 of image height
+        ],
+        alignment=ft.MainAxisAlignment.CENTER,
+        horizontal_alignment=ft.CrossAxisAlignment.CENTER
+        ),
+        alignment=ft.alignment.center,  # Center the container in the Stack
     )
 
     stack_children = []
