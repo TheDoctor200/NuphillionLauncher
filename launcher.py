@@ -189,6 +189,7 @@ def main(page: ft.Page):
     status_quote = ft.Text("Manage your Nuphillion mod install with ease", color="white", size=14, italic=True)
     status_label = ft.Text("Status", color="white", size=18, weight="bold")
     progress_bar = ft.ProgressBar(width=500, value=0)
+    status_text = ft.Text("", color="white", size=16)
 
     def update_progress_sync(value):
         progress_bar.value = value / 100
@@ -286,15 +287,15 @@ def main(page: ft.Page):
             width=250,
             height=50,
             icon=icon,
-            icon_color="white" if icon else None  # Set icon color to white
+            icon_color="white" if icon else None
         )
 
     buttons = ft.Column([
-        create_button("Install Mod", install_mod_click, "#00796B", ft.icons.DOWNLOAD),
-        create_button("Uninstall Mod", uninstall_mod_click, "#D32F2F", ft.icons.DELETE_FOREVER),
-        create_button("Check Status", check_status_click, "#1976D2", ft.icons.INFO),
-        create_button("Update App", update_app_click, "#FF9800", ft.icons.UPGRADE),
-        create_button("Open Discord", open_discord, "#6200EE", ft.icons.CHAT),
+        create_button("Install Mod", install_mod_click, "#00796B", ft.Icons.DOWNLOAD),
+        create_button("Uninstall Mod", uninstall_mod_click, "#D32F2F", ft.Icons.DELETE_FOREVER),
+        create_button("Check Status", check_status_click, "#1976D2", ft.Icons.INFO),
+        create_button("Update App", update_app_click, "#FF9800", ft.Icons.UPGRADE),
+        create_button("Open Discord", open_discord, "#6200EE", ft.Icons.CHAT),
     ], spacing=10, alignment=ft.MainAxisAlignment.CENTER)
 
     # Center UI elements vertically and horizontally
@@ -303,6 +304,7 @@ def main(page: ft.Page):
             ft.Text("Nuphillion Mod Manager", size=24, weight="bold", color="white"),
             status_quote,
             status_label,
+            status_text,
             progress_bar,
             buttons,
             ft.Text("Developed by CutesyThrower12 and TheDoctor :)", size=12, color="white")
