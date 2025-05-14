@@ -285,7 +285,8 @@ def main(page: ft.Page):
             color="white",
             width=250,
             height=50,
-            icon=icon
+            icon=icon,
+            icon_color="white" if icon else None  # Set icon color to white
         )
 
     buttons = ft.Column([
