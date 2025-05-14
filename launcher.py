@@ -144,12 +144,28 @@ mod_manager = ModManager(appData)
 
 def main(page: ft.Page):
     page.title = "Nuphillion Mod Manager"
-    page.window_title = "Nuphillion Mod Manager"  # This sets the window border title
+    page.window_title = "Nuphillion Mod Manager"
     page.bgcolor = "#006064"
     page.window_width = 900
     page.window_height = 800
     page.vertical_alignment = ft.MainAxisAlignment.CENTER
+    page.padding = 0
 
+    # Background image
+    ASSETS_DIR = os.path.join(os.path.dirname(__file__), "assets")
+    bg_path = os.path.join(ASSETS_DIR, "holo_table.jpg")
+    icon_path = os.path.join(ASSETS_DIR, "The_Vanquished.png")
+
+    # Prepare icon if exists
+    icon = None
+    if os.path.exists(icon_path):
+        icon = ft.Container(
+            content=ft.Image(src=icon_path, width=64, height=64),
+            alignment=ft.alignment.top_right,
+            padding=20,
+        )
+
+    # Main content column
     status_text = ft.Text("Welcome to Nuphillion Mod Manager!", color="white", size=16)
     progress_bar = ft.ProgressBar(width=500, value=0)
 
@@ -161,11 +177,9 @@ def main(page: ft.Page):
         status_text.value = "Installing mod..."
         progress_bar.value = 0
         page.update()
-
         def progress_callback(value):
             progress_bar.value = value / 100
             page.update()
-
         result = await mod_manager.install_mod(progress_callback)
         status_text.value = result
         page.update()
@@ -174,11 +188,9 @@ def main(page: ft.Page):
         status_text.value = "Restoring original files..."
         progress_bar.value = 0
         page.update()
-
         def progress_callback(value):
             progress_bar.value = value / 100
             page.update()
-
         result = await mod_manager.restore_original_files(progress_callback)
         status_text.value = result
         page.update()
@@ -204,15 +216,32 @@ def main(page: ft.Page):
         create_button("Open Discord", open_discord, "#6200EE"),
     ], spacing=10, alignment=ft.MainAxisAlignment.CENTER)
 
-    page.add(
-        ft.Column([
-            ft.Text("Nuphillion Mod Manager", size=24, weight="bold", color="white"),
-            status_text,
-            progress_bar,
-            buttons,
-            ft.Text("Developed by CutesyThrower12", size=12, color="white")
-        ], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER)
-    )
+    content = ft.Column([
+        ft.Text("Nuphillion Mod Manager", size=24, weight="bold", color="white"),
+        status_text,
+        progress_bar,
+        buttons,
+        ft.Text("Developed by CutesyThrower12", size=12, color="white")
+    ], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER)
 
+    # Stack background, content, and icon
+    stack_children = []
+    if os.path.exists(bg_path):
+        stack_children.append(
+            ft.Image(
+                src=bg_path,
+                width=page.window_width,
+                height=page.window_height,
+                fit=ft.ImageFit.COVER,
+                opacity=0.7
+            )
+        )
+    stack_children.append(content)
+    if icon:
+        stack_children.append(icon)
+
+    page.add(
+        ft.Stack(stack_children)
+    )
 
 ft.app(target=main)
