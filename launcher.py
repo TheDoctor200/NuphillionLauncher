@@ -149,8 +149,6 @@ def main(page: ft.Page):
     page.window_title = "Nuphillion Mod Manager"
     page.window_resizable = True
     page.window_center = True
-    page.window_min_width = 600
-    page.window_min_height = 400
     page.window_maximizable = True
     page.window_always_on_top = False
     page.bgcolor = "#006064"
