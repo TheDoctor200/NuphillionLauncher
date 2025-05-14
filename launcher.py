@@ -5,6 +5,7 @@ import requests
 import zipfile
 import asyncio
 import io
+import sys
 from concurrent.futures import ThreadPoolExecutor
 
 # Constants
@@ -13,6 +14,7 @@ VERSION_PTR = '1_11_2931_10'
 RELEASE_URI = 'https://github.com/CutesyThrower12/Nuphillion/releases/download/vInDev/nuphillion.zip'
 OG_FILES_URL = 'https://github.com/CutesyThrower12/HW2-Original-Files/releases/download/1.0/hw2ogfiles.zip'
 HW2_HOGAN_PATH = "Packages\\Microsoft.HoganThreshold_8wekyb3d8bbwe\\LocalState"
+UPDATER_RELEASE_URL = "https://github.com/TheDoctor200/NuphillionLauncher/releases/latest/download/NuphillionLauncher.exe"
 
 appData = os.environ.get('LOCALAPPDATA')
 if not appData:
@@ -209,6 +211,52 @@ def main(page: ft.Page):
         status_text.value = result
         page.update()
 
+    async def update_app_click(e):
+        status_text.value = "Updating app..."
+        progress_bar.value = 0
+        page.update()
+
+        exe_path = sys.argv[0]
+        tmp_path = exe_path + ".new"
+        try:
+            # Download new exe
+            def download_callback(chunk, total, downloaded):
+                percent = int(downloaded / total * 100) if total else 0
+                progress_bar.value = percent / 100
+                page.update()
+
+            async def download_file(url, dest, callback):
+                loop = asyncio.get_running_loop()
+                with requests.get(url, stream=True, timeout=30) as r:
+                    r.raise_for_status()
+                    total = int(r.headers.get('content-length', 0))
+                    downloaded = 0
+                    with open(dest, "wb") as f:
+                        for chunk in r.iter_content(chunk_size=8192):
+                            if chunk:
+                                f.write(chunk)
+                                downloaded += len(chunk)
+                                await loop.run_in_executor(None, callback, chunk, total, downloaded)
+
+            await download_file(UPDATER_RELEASE_URL, tmp_path, download_callback)
+
+            # Replace current exe with new one
+            backup_path = exe_path + ".bak"
+            try:
+                if os.path.exists(backup_path):
+                    os.remove(backup_path)
+            except Exception:
+                pass
+            os.rename(exe_path, backup_path)
+            os.rename(tmp_path, exe_path)
+            status_text.value = "Update complete! Please restart the launcher."
+        except Exception as ex:
+            status_text.value = f"Update failed: {ex}"
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+        progress_bar.value = 1
+        page.update()
+
     def check_status_click(e):
         if mod_manager.local_mod_exists():
             status_text.value = "Mod is installed and up-to-date!" if mod_manager.version == VERSION else "Mod is outdated. Update available."
@@ -220,6 +268,10 @@ def main(page: ft.Page):
         import webbrowser
         webbrowser.open("https://discord.gg/NeTyqrvbeY")
 
+    def open_update_github(e):
+        import webbrowser
+        webbrowser.open("https://github.com/TheDoctor200/NuphillionLauncher")
+
     def create_button(text, on_click, color):
         return ft.ElevatedButton(text, on_click=on_click, bgcolor=color, color="white", width=250, height=50)
 
@@ -227,6 +279,7 @@ def main(page: ft.Page):
         create_button("Install Mod", install_mod_click, "#00796B"),
         create_button("Uninstall Mod", uninstall_mod_click, "#D32F2F"),
         create_button("Check Status", check_status_click, "#1976D2"),
+        create_button("Update App", update_app_click, "#FF9800"),  # Now calls direct updater
         create_button("Open Discord", open_discord, "#6200EE"),
     ], spacing=10, alignment=ft.MainAxisAlignment.CENTER)
 
@@ -237,7 +290,7 @@ def main(page: ft.Page):
             status_text,
             progress_bar,
             buttons,
-            ft.Text("Developed by CutesyThrower12", size=12, color="white")
+            ft.Text("Developed by CutesyThrower12 and TheDoctor :)", size=12, color="white")
         ],
         alignment=ft.MainAxisAlignment.CENTER,
         horizontal_alignment=ft.CrossAxisAlignment.CENTER
