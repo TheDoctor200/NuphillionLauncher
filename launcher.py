@@ -242,7 +242,8 @@ def main(page: ft.Page):
         alignment=ft.MainAxisAlignment.CENTER,
         horizontal_alignment=ft.CrossAxisAlignment.CENTER
         ),
-        alignment=ft.alignment.center,  # Center the container in the Stack
+        alignment=ft.alignment.center,
+        padding=ft.padding.only(top=80),  # Increased top padding for more downward shift
     )
 
     stack_children = []
