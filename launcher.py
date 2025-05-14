@@ -186,7 +186,8 @@ def main(page: ft.Page):
             padding=20,
         )
 
-    status_text = ft.Text("Welcome to Nuphillion Mod Manager!", color="white", size=16)
+    status_quote = ft.Text("Manage your Nuphillion mod install with ease", color="white", size=14, italic=True)
+    status_label = ft.Text("Status", color="white", size=18, weight="bold")
     progress_bar = ft.ProgressBar(width=500, value=0)
 
     def update_progress_sync(value):
@@ -291,7 +292,8 @@ def main(page: ft.Page):
     content = ft.Container(
         content=ft.Column([
             ft.Text("Nuphillion Mod Manager", size=24, weight="bold", color="white"),
-            status_text,
+            status_quote,
+            status_label,
             progress_bar,
             buttons,
             ft.Text("Developed by CutesyThrower12 and TheDoctor :)", size=12, color="white")
@@ -300,7 +302,7 @@ def main(page: ft.Page):
         horizontal_alignment=ft.CrossAxisAlignment.CENTER
         ),
         alignment=ft.alignment.center,
-        padding=ft.padding.only(top=80),  # Increased top padding for more downward shift
+        padding=ft.padding.only(top=80),
     )
 
     stack_children = []
