@@ -9,8 +9,8 @@ A modern launcher for Halo Wars 2, focused on easy mod management and updates fo
 - **One-click install/uninstall** of the Nuphillion Mod
 - **Automatic update checks** and easy updating
 - **Bandwidth and download statistics** with live preview
-- **Game launch integration**
-- **Beautiful, modern UI** with mod preview images
+- **Game launch integration** dynamic HW2 Launcher + possible offline support for future via dll injection
+- **Beautiful, modern UI** with mica win11 style
 - **No admin rights required** for mod install/uninstall
 - **Around 3 seconds startup time** reduced from ~4min 
 ---
