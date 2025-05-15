@@ -28,9 +28,9 @@ python launcher.py
 
 ---
 
-## 🖼️ App Preview
+## 🖼️ App Preview (resizeable window)
 
-<img src="assets/HaloWars2Preview.gif" alt="App Preview" width="350" style="border-radius: 16px; margin-bottom: 16px;">
+<img src="assets/App_Preview.png" alt="App Preview" width="350" style="border-radius: 16px; margin-bottom: 16px;">
 
 ---
 
