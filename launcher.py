@@ -186,7 +186,7 @@ def main(page: ft.Page):
             super().__init__()
             self.bg_img = ft.Image(
                 src=bg_path,
-                fit=ft.ImageFit.COVER,
+                fit=ft.ImageFit.FILL,  # Use FILL to always cover the background
                 opacity=0.7,
                 width=page.window_width,
                 height=page.window_height
