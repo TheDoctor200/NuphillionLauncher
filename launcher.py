@@ -184,23 +184,18 @@ def main(page: ft.Page):
     page.window_width = bg_width
     page.window_height = bg_height
 
-    # Dynamic background image that resizes with window
+    # Dynamic background image that always covers the full app background and resizes with window
     class DynamicBg(ft.Stack):
         def __init__(self):
             super().__init__()
             self.bg_img = ft.Image(
                 src=bg_path,
-                fit=ft.ImageFit.COVER,  # Restore COVER for aspect ratio
-                opacity=0.7,
+                fit=ft.ImageFit.COVER,
+                opacity=0.6,
                 width=page.window_width,
                 height=page.window_height
             )
             self.controls = [self.bg_img]
-
-        def resize_bg(self, e=None):
-            self.bg_img.width = page.window_width
-            self.bg_img.height = page.window_height
-            self.update()
 
     status_quote = ft.Text("Manage your Nuphillion mod install with ease", color="white", size=14, italic=True)
     status_label = ft.Text("Status:", color="white", size=18, weight="bold")
@@ -449,8 +444,10 @@ def main(page: ft.Page):
         dynamic_bg = DynamicBg()
         stack_children.append(dynamic_bg)
         def on_resize(e):
-            dynamic_bg.resize_bg()
-        page.on_window_event = lambda e: on_resize(e) if e.data == "resize" else None
+            dynamic_bg.bg_img.width = page.window_width
+            dynamic_bg.bg_img.height = page.window_height
+            dynamic_bg.update()
+        page.on_resize = on_resize  # Ensures background resizes with window
 
     # Prepare icon if exists (ensure 'icon' is always defined)
     icon = None
