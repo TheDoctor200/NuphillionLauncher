@@ -6,6 +6,8 @@ import zipfile
 import asyncio
 import io
 import sys
+import time
+import collections
 from concurrent.futures import ThreadPoolExecutor
 
 # Constants
@@ -187,9 +189,38 @@ def main(page: ft.Page):
         )
 
     status_quote = ft.Text("Manage your Nuphillion mod install with ease", color="white", size=14, italic=True)
-    status_label = ft.Text("Status", color="white", size=18, weight="bold")
+    status_label = ft.Text("Status:", color="white", size=18, weight="bold")
     progress_bar = ft.ProgressBar(width=500, value=0)
     status_text = ft.Text("", color="white", size=16)
+
+    # --- Bandwidth Graph State ---
+    bandwidth_history = collections.deque(maxlen=60)  # last 60 samples (seconds)
+    bandwidth_chart = ft.LineChart(
+        data_series=[
+            ft.LineChartData(
+                data_points=[],
+                stroke_width=3,
+                color=ft.Colors.CYAN,  # Updated to Colors
+                curved=True,
+                stroke_cap_round=True,
+            )
+        ],
+        min_y=0,
+        max_y=10,
+        width=300,
+        height=80,
+        left_axis=ft.ChartAxis(labels_size=30),
+        bottom_axis=ft.ChartAxis(labels_size=20),
+        tooltip_bgcolor=ft.Colors.BLUE_GREY_900,  # Updated to Colors
+        expand=True,
+        animate=True,
+    )
+
+    # --- Bandwidth State ---
+    bandwidth_value = [0.0]  # Store last bandwidth in MB/s
+    size_text = ft.Text("Downloaded: 0 MB", color="white", size=15)
+    bandwidth_text = ft.Text("Speed: 0.00 MB/s", color="white", size=15)
+    stats_label = ft.Text("Download Statistics:", color="white", size=16, weight="bold")
 
     def update_progress_sync(value):
         progress_bar.value = value / 100
@@ -198,12 +229,60 @@ def main(page: ft.Page):
     async def install_mod_click(e):
         status_text.value = "Installing mod..."
         progress_bar.value = 0
+        size_text.value = "Downloaded: 0 MB"
+        bandwidth_text.value = "Speed: 0.00 MB/s"
         page.update()
+
+        last_time = [time.time()]
+        last_bytes = [0]
+        total_bytes = [0]
+
+        async def download_file_with_bandwidth(url, callback):
+            loop = asyncio.get_running_loop()
+            with requests.get(url, stream=True, timeout=30) as r:
+                r.raise_for_status()
+                total = int(r.headers.get('content-length', 0))
+                downloaded = 0
+                chunk_size = 8192
+                last_graph_update = time.time()
+                with io.BytesIO() as f:
+                    for chunk in r.iter_content(chunk_size=chunk_size):
+                        if chunk:
+                            f.write(chunk)
+                            downloaded += len(chunk)
+                            total_bytes[0] = downloaded
+                            # Update size text
+                            size_text.value = f"Downloaded: {downloaded / 1024 / 1024:.2f} MB"
+                            # Bandwidth calculation
+                            now = time.time()
+                            elapsed = now - last_time[0]
+                            if elapsed > 0.5:
+                                bandwidth = (downloaded - last_bytes[0]) / elapsed / 1024 / 1024  # MB/s
+                                bandwidth_value[0] = bandwidth
+                                bandwidth_text.value = f"Speed: {bandwidth:.2f} MB/s"
+                                last_time[0] = now
+                                last_bytes[0] = downloaded
+                            page.update()
+                            await loop.run_in_executor(None, callback, chunk, total, downloaded)
+                    # Final update
+                    size_text.value = f"Downloaded: {downloaded / 1024 / 1024:.2f} MB"
+                    bandwidth_text.value = f"Speed: {bandwidth_value[0]:.2f} MB/s"
+                    page.update()
+                    return f.getvalue()
+
         def progress_callback(value):
             progress_bar.value = value / 100
             page.update()
+
+        # Patch ModManager to use our custom downloader for bandwidth tracking
+        async def patched_download_file(url):
+            return await download_file_with_bandwidth(url, lambda *_: None)
+        old_download_file = mod_manager._download_file
+        mod_manager._download_file = patched_download_file
+
         result = await mod_manager.install_mod(progress_callback)
         status_text.value = result
+        mod_manager._download_file = old_download_file  # Restore original
         page.update()
 
     async def uninstall_mod_click(e):
@@ -290,24 +369,43 @@ def main(page: ft.Page):
             icon_color="white" if icon else None
         )
 
+    async def launch_game_click(e):
+        # Launch startup.pyw in the current directory
+        try:
+            startup_path = os.path.join(os.path.dirname(__file__), "startup.pyw")
+            os.startfile(startup_path)
+            status_text.value = "Game launched!"
+        except Exception as ex:
+            status_text.value = f"Failed to launch game: {ex}"
+        page.update()
+
     buttons = ft.Column([
         create_button("Install Mod", install_mod_click, "#00796B", ft.Icons.DOWNLOAD),
         create_button("Uninstall Mod", uninstall_mod_click, "#D32F2F", ft.Icons.DELETE_FOREVER),
         create_button("Check Status", check_status_click, "#1976D2", ft.Icons.INFO),
-        create_button("Update App", update_app_click, "#FF9800", ft.Icons.UPGRADE),
+        create_button("Update Launcher", update_app_click, "#FF9800", ft.Icons.UPGRADE),
         create_button("Open Discord", open_discord, "#6200EE", ft.Icons.CHAT),
     ], spacing=10, alignment=ft.MainAxisAlignment.CENTER)
 
     # Center UI elements vertically and horizontally
     content = ft.Container(
         content=ft.Column([
-            ft.Text("Nuphillion Mod Manager", size=24, weight="bold", color="white"),
+            ft.Text(
+                "Nuphillion Mod Manager",
+                size=24,
+                weight="bold",
+                color="white",
+                text_align=ft.TextAlign.CENTER,
+            ),
             status_quote,
-            status_label,
+            ft.Container(status_label, padding=ft.padding.only(top=24)),
             status_text,
             progress_bar,
-            buttons,
-            ft.Text("Developed by CutesyThrower12 and TheDoctor :)", size=12, color="white")
+            ft.Container(buttons, padding=ft.padding.only(top=8)),
+            ft.Container(
+                ft.Text("Developed by CutesyThrower12 and TheDoctor :)", size=12, color="white"),
+                padding=ft.padding.only(top=10)
+            ),
         ],
         alignment=ft.MainAxisAlignment.CENTER,
         horizontal_alignment=ft.CrossAxisAlignment.CENTER
@@ -330,9 +428,50 @@ def main(page: ft.Page):
     stack_children.append(content)
     if icon:
         stack_children.append(icon)
+        # Add bandwidth and size info under the icon (top left) with mica style
+        stack_children.append(
+            ft.Container(
+                content=ft.Column([
+                    stats_label,
+                    size_text,
+                    bandwidth_text,
+                    ft.Container(  # Launch Game button directly under download statistics
+                        create_button("Launch Game", launch_game_click, "#43A047", ft.Icons.PLAY_ARROW),
+                        padding=ft.padding.only(top=10)
+                    ),
+                    # Add HaloWars2Preview.gif with beautiful corners and spacing
+                    ft.Container(
+                        ft.Image(
+                            src=os.path.join(ASSETS_DIR, "HaloWars2Preview.gif"),
+                            width=180,
+                            height=120,
+                            fit=ft.ImageFit.CONTAIN,
+                            border_radius=18,
+                        ),
+                        padding=ft.padding.only(top=5, bottom=0),  # Reduced from 32 to 16
+                        alignment=ft.alignment.center,
+                    )
+                ], spacing=6),
+                left=20,
+                top=150,
+                width=220,
+                bgcolor=ft.Colors.with_opacity(0.35, ft.Colors.BLUE_GREY_900),
+                border_radius=16,
+                blur=20,
+                shadow=ft.BoxShadow(
+                    blur_radius=16,
+                    color=ft.Colors.with_opacity(0.4, ft.Colors.BLACK),
+                    spread_radius=2,
+                    offset=ft.Offset(2, 4)
+                ),
+                padding=16,
+            )
+        )
 
     page.add(
-        ft.Stack(stack_children)
+        ft.Stack([
+            *stack_children
+        ])
     )
 
 ft.app(target=main)
