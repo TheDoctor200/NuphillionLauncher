@@ -1,0 +1,5 @@
+name: NuphillionLauncher
+module_name: launcher.py
+icon: assets/favicon.ico
+windows:
+  icon: assets/favicon.ico
