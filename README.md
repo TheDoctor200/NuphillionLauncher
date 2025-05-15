@@ -30,7 +30,7 @@ python launcher.py
 
 ## 🖼️ App Preview (resizeable window)
 
-<img src="assets/App_Preview.png" alt="App Preview" width="350" style="border-radius: 16px; margin-bottom: 16px;">
+<img src="assets/App_Preview.png" alt="App Preview" width="600" style="border-radius: 16px; margin-bottom: 16px;">
 
 ---
 
