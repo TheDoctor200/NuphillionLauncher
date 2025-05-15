@@ -1,2 +1,67 @@
 # NuphillionLauncher
-Launcher for HaloWars 2 with possible offline support in the future, mainly for installing and updating Nuphillion Mod
+
+A modern launcher for Halo Wars 2, focused on easy mod management and updates for the Nuphillion Mod.
+
+---
+
+## ✨ Features
+
+- **One-click install/uninstall** of the Nuphillion Mod
+- **Automatic update checks** and easy updating
+- **Bandwidth and download statistics** with live preview
+- **Game launch integration**
+- **Beautiful, modern UI** with mod preview images
+- **No admin rights required** for mod install/uninstall
+- **Around 3 seconds startup time** reduced from ~4min 
+---
+
+## 📦 Installation
+
+You can either build from source or use the precompiled Windows installer available on the [Releases Page](https://github.com/TheDoctor200/NuphillionLauncher/releases/latest).
+
+```sh
+pip install -r requirements.txt
+python launcher.py
+```
+
+✅ **Windows only**
+
+---
+
+## 🖼️ App Preview
+
+<img src="assets/HaloWars2Preview.gif" alt="App Preview" width="350" style="border-radius: 16px; margin-bottom: 16px;">
+
+---
+
+## 🎨 Mod Preview Images
+
+| ![IMG_3824](assets/IMG_3824.png) | ![IMG_3796](assets/IMG_3796.png) | ![frostBound](assets/frostBound.png) |
+|:-------------------------------:|:-------------------------------:|:-----------------------------------:|
+|         `IMG_3824.png`          |         `IMG_3796.png`          |         `frostBound.png`            |
+
+---
+
+## ℹ️ Details
+
+- **Easy to use:** Simple, modern interface.
+- **Safe:** No admin rights required for mod install/uninstall.
+- **Actively maintained:** Check the [Releases Page](https://github.com/TheDoctor200/NuphillionLauncher/releases/latest) for updates.
+
+---
+
+## 🙏 Credits
+
+- **CutesyThrower12** – Mod developmen
+- **TheDoctor200** – Launcher development, update system, UI/UX
+
+---
+
+## 💸 Support future development & my work
+
+<img src="https://img.icons8.com/fluency/48/000000/litecoin.png" width="24" height="24" alt="LTC"> LTC Wallet: `0x4338665CBB7B2485A8855A139b75D5e34AB0DB94`  
+<img src="https://img.icons8.com/fluency/48/000000/ethereum.png" width="24" height="24" alt="ETH"> ETH Wallet: `0xfbe3E2337e7bCfC9245f0C2eAeF16597f0Bb2Dc2`
+
+---
+
+Enjoy modding Halo Wars 2 with **NuphillionLauncher**!
