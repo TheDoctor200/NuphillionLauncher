@@ -160,6 +160,12 @@ def main(page: ft.Page):
     ASSETS_DIR = os.path.join(os.path.dirname(__file__), "assets")
     bg_path = os.path.join(ASSETS_DIR, "holo_table.jpg")
     icon_path = os.path.join(ASSETS_DIR, "The_Vanquished.png")
+    favicon_path = os.path.join(ASSETS_DIR, "favicon.ico")
+
+    # Set window icon and app icon
+    if os.path.exists(favicon_path):
+        page.window_icon = favicon_path
+        page.icon = favicon_path
 
     # Get background image size
     bg_width, bg_height = 900, 800  # fallback default
@@ -174,19 +180,23 @@ def main(page: ft.Page):
     page.window_width = bg_width
     page.window_height = bg_height
 
-    # Prepare icon if exists
-    icon = None
-    if os.path.exists(icon_path):
-        icon = ft.Container(
-            content=ft.Image(
-                src=icon_path,
-                width=80,
-                height=80,
-                fit=ft.ImageFit.CONTAIN,
-            ),
-            alignment=ft.alignment.top_left,
-            padding=20,
-        )
+    # Dynamic background image that resizes with window
+    class DynamicBg(ft.Stack):
+        def __init__(self):
+            super().__init__()
+            self.bg_img = ft.Image(
+                src=bg_path,
+                fit=ft.ImageFit.COVER,
+                opacity=0.7,
+                width=page.window_width,
+                height=page.window_height
+            )
+            self.controls = [self.bg_img]
+
+        def resize_bg(self, e=None):
+            self.bg_img.width = page.window_width
+            self.bg_img.height = page.window_height
+            self.update()
 
     status_quote = ft.Text("Manage your Nuphillion mod install with ease", color="white", size=14, italic=True)
     status_label = ft.Text("Status:", color="white", size=18, weight="bold")
@@ -432,15 +442,26 @@ def main(page: ft.Page):
 
     stack_children = []
     if os.path.exists(bg_path):
-        stack_children.append(
-            ft.Image(
-                src=bg_path,
-                width=bg_width,
-                height=bg_height,
-                fit=ft.ImageFit.COVER,
-                opacity=0.7
-            )
+        dynamic_bg = DynamicBg()
+        stack_children.append(dynamic_bg)
+        def on_resize(e):
+            dynamic_bg.resize_bg()
+        page.on_window_event = lambda e: on_resize(e) if e.data == "resize" else None
+
+    # Prepare icon if exists (ensure 'icon' is always defined)
+    icon = None
+    if os.path.exists(icon_path):
+        icon = ft.Container(
+            content=ft.Image(
+                src=icon_path,
+                width=80,
+                height=80,
+                fit=ft.ImageFit.CONTAIN,
+            ),
+            alignment=ft.alignment.top_left,
+            padding=20,
         )
+
     stack_children.append(content)
     if icon:
         stack_children.append(icon)
