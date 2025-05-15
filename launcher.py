@@ -222,9 +222,7 @@ def main(page: ft.Page):
     bandwidth_text = ft.Text("Speed: 0.00 MB/s", color="white", size=15)
     stats_label = ft.Text("Download Statistics:", color="white", size=16, weight="bold")
 
-    def update_progress_sync(value):
-        progress_bar.value = value / 100
-        page.update()
+    VERSION_FILE = os.path.join(os.path.dirname(__file__), "version.txt")
 
     async def install_mod_click(e):
         status_text.value = "Installing mod..."
@@ -297,10 +295,68 @@ def main(page: ft.Page):
         page.update()
 
     async def update_app_click(e):
-        import webbrowser
-        webbrowser.open("https://github.com/TheDoctor200/NuphillionLauncher/releases/latest")
+        VERSION_FILE = os.path.join(os.path.dirname(__file__), "version.txt")
+        # Read local version
+        local_version = None
+        if os.path.exists(VERSION_FILE):
+            with open(VERSION_FILE, "r", encoding="utf-8") as f:
+                local_version = f.read().strip()
+        else:
+            local_version = "unknown"
 
-    def check_status_click(e):
+        # Fetch latest version from GitHub releases
+        import requests
+        import webbrowser
+
+        try:
+            api_url = "https://api.github.com/repos/TheDoctor200/NuphillionLauncher/releases/latest"
+            resp = requests.get(api_url, timeout=10)
+            resp.raise_for_status()
+            latest = resp.json()
+            latest_version = latest.get("tag_name", "").lstrip("vV")
+        except Exception as ex:
+            status_text.value = f"Could not check latest version: {ex}"
+            progress_bar.value = 0.0
+            page.update()
+            return
+
+        if local_version == latest_version:
+            status_text.value = "You are currently on the latest launcher version"
+            progress_bar.value = 1.0
+            page.update()
+            return
+
+        # Not latest, ask user
+        status_text.value = f"New version available: {latest_version} (current: {local_version})"
+        progress_bar.value = 0.5
+        page.update()
+
+        # Show Yes/No selection
+        def on_select(choice):
+            page.dialog.open = False
+            page.update()
+            if choice == "yes":
+                status_text.value = "Downloading new version..."
+                page.update()
+                webbrowser.open("https://github.com/TheDoctor200/NuphillionLauncher/releases/latest")
+            else:
+                status_text.value = "Update cancelled."
+                page.update()
+
+        page.dialog = ft.AlertDialog(
+            modal=True,
+            title=ft.Text("Update Available"),
+            content=ft.Text("Would you like to download the new version now?"),
+            actions=[
+                ft.TextButton("Yes", on_click=lambda e: on_select("yes")),
+                ft.TextButton("No", on_click=lambda e: on_select("no")),
+            ],
+            actions_alignment=ft.MainAxisAlignment.END,
+        )
+        page.dialog.open = True
+        page.update()
+
+    async def check_status_click(e):
         if mod_manager.local_mod_exists():
             status_text.value = "Mod is installed and up-to-date!" if mod_manager.version == VERSION else "Mod is outdated. Update available."
             progress_bar.value = 1.0
