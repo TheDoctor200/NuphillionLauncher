@@ -297,56 +297,16 @@ def main(page: ft.Page):
         page.update()
 
     async def update_app_click(e):
-        status_text.value = "Updating app..."
-        progress_bar.value = 0
-        page.update()
-
-        exe_path = sys.argv[0]
-        tmp_path = exe_path + ".new"
-        try:
-            # Download new exe
-            def download_callback(chunk, total, downloaded):
-                percent = int(downloaded / total * 100) if total else 0
-                progress_bar.value = percent / 100
-                page.update()
-
-            async def download_file(url, dest, callback):
-                loop = asyncio.get_running_loop()
-                with requests.get(url, stream=True, timeout=30) as r:
-                    r.raise_for_status()
-                    total = int(r.headers.get('content-length', 0))
-                    downloaded = 0
-                    with open(dest, "wb") as f:
-                        for chunk in r.iter_content(chunk_size=8192):
-                            if chunk:
-                                f.write(chunk)
-                                downloaded += len(chunk)
-                                await loop.run_in_executor(None, callback, chunk, total, downloaded)
-
-            await download_file(UPDATER_RELEASE_URL, tmp_path, download_callback)
-
-            # Replace current exe with new one
-            backup_path = exe_path + ".bak"
-            try:
-                if os.path.exists(backup_path):
-                    os.remove(backup_path)
-            except Exception:
-                pass
-            os.rename(exe_path, backup_path)
-            os.rename(tmp_path, exe_path)
-            status_text.value = "Update complete! Please restart the launcher."
-        except Exception as ex:
-            status_text.value = f"Update failed: {ex}"
-            if os.path.exists(tmp_path):
-                os.remove(tmp_path)
-        progress_bar.value = 1
-        page.update()
+        import webbrowser
+        webbrowser.open("https://github.com/TheDoctor200/NuphillionLauncher/releases/latest")
 
     def check_status_click(e):
         if mod_manager.local_mod_exists():
             status_text.value = "Mod is installed and up-to-date!" if mod_manager.version == VERSION else "Mod is outdated. Update available."
+            progress_bar.value = 1.0
         else:
             status_text.value = "Mod is not installed."
+            progress_bar.value = 0.0
         page.update()
 
     def open_discord(e):
