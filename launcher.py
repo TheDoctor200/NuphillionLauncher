@@ -162,10 +162,14 @@ def main(page: ft.Page):
     icon_path = os.path.join(ASSETS_DIR, "The_Vanquished.png")
     favicon_path = os.path.join(ASSETS_DIR, "favicon.ico")
 
-    # Set window icon and app icon
+    # Set window icon, app icon, and tray icon (if supported)
     if os.path.exists(favicon_path):
         page.window_icon = favicon_path
         page.icon = favicon_path
+        try:
+            page.tray_icon = favicon_path  # For Flet >=0.14.0, sets Windows tray/taskbar icon
+        except Exception:
+            pass
 
     # Get background image size
     bg_width, bg_height = 900, 800  # fallback default
@@ -186,7 +190,7 @@ def main(page: ft.Page):
             super().__init__()
             self.bg_img = ft.Image(
                 src=bg_path,
-                fit=ft.ImageFit.FILL,  # Use FILL to always cover the background
+                fit=ft.ImageFit.COVER,  # Restore COVER for aspect ratio
                 opacity=0.7,
                 width=page.window_width,
                 height=page.window_height
