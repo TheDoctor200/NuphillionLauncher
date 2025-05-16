@@ -191,7 +191,7 @@ def main(page: ft.Page):
             self.bg_img = ft.Image(
                 src=bg_path,
                 fit=ft.ImageFit.COVER,
-                opacity=0.6,
+                opacity=0.5,
                 width=page.window_width,
                 height=page.window_height
             )
