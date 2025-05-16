@@ -9,6 +9,7 @@ import sys
 import time
 import collections
 from concurrent.futures import ThreadPoolExecutor
+import subprocess  # <-- add this import
 
 # Constants
 VERSION = '1_11_2931_2'
@@ -146,6 +147,29 @@ class ModManager:
 mod_manager = ModManager(appData)
 
 
+def get_aumid(app_name_filter="Halo Wars 2"):
+    # PowerShell command to list Start Menu apps
+    ps_command = f'''
+    Get-StartApps | Where-Object {{$_.Name -like "*{app_name_filter}*"}} | Select-Object -ExpandProperty AppID
+    '''
+    result = subprocess.run(["powershell", "-Command", ps_command], capture_output=True, text=True)
+    aumids = result.stdout.strip().splitlines()
+
+    if not aumids:
+        print(f"No app found with name containing '{app_name_filter}'")
+        return None
+    else:
+        # Optionally choose the first match if there are several
+        return aumids[0].strip()
+
+def launch_app(aumid):
+    try:
+        subprocess.run(f'start explorer shell:appsfolder\\{aumid}', shell=True)
+        print(f"Launched: {aumid}")
+    except Exception as e:
+        print(f"Failed to launch app: {e}")
+
+
 def main(page: ft.Page):
     page.title = "Nuphillion Mod Manager"
     page.window_title = "Nuphillion Mod Manager"
@@ -196,6 +220,11 @@ def main(page: ft.Page):
                 height=page.window_height
             )
             self.controls = [self.bg_img]
+
+        def resize(self, width, height):
+            self.bg_img.width = width
+            self.bg_img.height = height
+            self.update()  # Update the entire container, not just the image
 
     status_quote = ft.Text("Manage your Nuphillion mod install with ease", color="white", size=14, italic=True)
     status_label = ft.Text("Status:", color="white", size=18, weight="bold")
@@ -395,11 +424,15 @@ def main(page: ft.Page):
         )
 
     async def launch_game_click(e):
-        # Launch startup.pyw in the current directory
+        # Launch Halo Wars 2 (or other app) via AUMID
         try:
-            startup_path = os.path.join(os.path.dirname(__file__), "startup.pyw")
-            os.startfile(startup_path)
-            status_text.value = "Game launched!"
+            app_name = "Halo Wars 2"
+            aumid = get_aumid(app_name)
+            if aumid:
+                launch_app(aumid)
+                status_text.value = f"Game launched! ({aumid})"
+            else:
+                status_text.value = f"Could not find app with name '{app_name}'"
         except Exception as ex:
             status_text.value = f"Failed to launch game: {ex}"
         page.update()
@@ -444,9 +477,8 @@ def main(page: ft.Page):
         dynamic_bg = DynamicBg()
         stack_children.append(dynamic_bg)
         def on_resize(e):
-            dynamic_bg.bg_img.width = page.window_width
-            dynamic_bg.bg_img.height = page.window_height
-            dynamic_bg.update()
+            dynamic_bg.resize(page.window_width, page.window_height)
+            page.update()  # Force the app to update on every resize
         page.on_resize = on_resize  # Ensures background resizes with window
 
     # Prepare icon if exists (ensure 'icon' is always defined)
