@@ -203,7 +203,14 @@ def main(page: ft.Page):
             pass
 
     # Get background image size
-    bg_width, bg_height = 900, 800  # fallback default
+    # Dynamically determine background image size, fallback to 1920x1080 if not available
+    bg_width, bg_height = 1500, 844  # fallback default
+    if os.path.exists(bg_path):
+        try:
+            with Image.open(bg_path) as img:
+                bg_width, bg_height = img.size
+        except Exception:
+            pass
     if os.path.exists(bg_path):
         try:
             from PIL import Image
@@ -340,7 +347,9 @@ def main(page: ft.Page):
         page.update()
 
     async def update_app_click(e):
-        VERSION_FILE = os.path.join(os.path.dirname(__file__), "version.txt")
+        # Ensure version.txt is always checked in the same directory as the running executable or script
+        exe_dir = os.path.dirname(sys.executable if getattr(sys, 'frozen', False) else os.path.abspath(__file__))
+        VERSION_FILE = os.path.join(exe_dir, "version.txt")
         # Read local version
         local_version = None
         if os.path.exists(VERSION_FILE):
@@ -413,10 +422,6 @@ def main(page: ft.Page):
     def open_discord(e):
         import webbrowser
         webbrowser.open("https://discord.gg/NeTyqrvbeY")
-
-    def open_update_github(e):
-        import webbrowser
-        webbrowser.open("https://github.com/TheDoctor200/NuphillionLauncher")
 
     def create_button(text, on_click, color, icon=None):
         return ft.ElevatedButton(
