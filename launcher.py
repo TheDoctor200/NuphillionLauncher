@@ -295,10 +295,13 @@ def main(page: ft.Page):
         cancel_event = asyncio.Event()
         install_task["cancel_event"] = cancel_event
 
-        status_text.value = "Installing mod..."
-        progress_bar.value = 0
+        # Reset download statistics to zero
         size_text.value = "Downloaded: 0 MB"
         bandwidth_text.value = "Speed: 0.00 MB/s"
+        quick_update()
+
+        status_text.value = "Installing mod..."
+        progress_bar.value = 0
         quick_update()
 
         last_time = [time.time()]
@@ -364,6 +367,11 @@ def main(page: ft.Page):
         if install_task["task"] and not install_task["task"].done():
             install_task["cancel_event"].set()
             await install_task["task"]
+
+        # Reset download statistics to zero
+        size_text.value = "Downloaded: 0 MB"
+        bandwidth_text.value = "Speed: 0.00 MB/s"
+        quick_update()
 
         status_text.value = "Restoring original files..."
         progress_bar.value = 0
