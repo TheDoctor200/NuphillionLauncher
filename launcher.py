@@ -276,12 +276,19 @@ def main(page: ft.Page):
 
     VERSION_FILE = os.path.join(os.path.dirname(__file__), "version.txt")
 
+    def quick_update():
+        # Only update the UI, not the whole page (faster for small changes)
+        status_text.update()
+        progress_bar.update()
+        size_text.update()
+        bandwidth_text.update()
+
     async def install_mod_click(e):
         status_text.value = "Installing mod..."
         progress_bar.value = 0
         size_text.value = "Downloaded: 0 MB"
         bandwidth_text.value = "Speed: 0.00 MB/s"
-        page.update()
+        quick_update()
 
         last_time = [time.time()]
         last_bytes = [0]
@@ -338,7 +345,7 @@ def main(page: ft.Page):
     async def uninstall_mod_click(e):
         status_text.value = "Restoring original files..."
         progress_bar.value = 0
-        page.update()
+        quick_update()
         def progress_callback(value):
             progress_bar.value = value / 100
             page.update()
@@ -371,31 +378,31 @@ def main(page: ft.Page):
         except Exception as ex:
             status_text.value = f"Could not check latest version: {ex}"
             progress_bar.value = 0.0
-            page.update()
+            quick_update()
             return
 
         if local_version == latest_version:
             status_text.value = "You are currently on the latest launcher version"
             progress_bar.value = 1.0
-            page.update()
+            quick_update()
             return
 
         # Not latest, ask user
         status_text.value = f"New version available: {latest_version} (current: {local_version})"
         progress_bar.value = 0.5
-        page.update()
+        quick_update()
 
         # Show Yes/No selection
         def on_select(choice):
             page.dialog.open = False
-            page.update()
+            quick_update()
             if choice == "yes":
                 status_text.value = "Downloading new version..."
-                page.update()
+                quick_update()
                 webbrowser.open("https://github.com/TheDoctor200/NuphillionLauncher/releases/latest")
             else:
                 status_text.value = "Update cancelled."
-                page.update()
+                quick_update()
 
         page.dialog = ft.AlertDialog(
             modal=True,
@@ -417,7 +424,7 @@ def main(page: ft.Page):
         else:
             status_text.value = "Mod is not installed."
             progress_bar.value = 0.0
-        page.update()
+        quick_update()
 
     def open_discord(e):
         import webbrowser
