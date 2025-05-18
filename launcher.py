@@ -276,6 +276,9 @@ def main(page: ft.Page):
 
     VERSION_FILE = os.path.join(os.path.dirname(__file__), "version.txt")
 
+    # --- Download/Install/Uninstall cancellation state ---
+    install_task = {"task": None, "cancel_event": None}
+
     def quick_update():
         # Only update the UI, not the whole page (faster for small changes)
         status_text.update()
@@ -284,6 +287,14 @@ def main(page: ft.Page):
         bandwidth_text.update()
 
     async def install_mod_click(e):
+        # Cancel any previous install if running
+        if install_task["task"] and not install_task["task"].done():
+            install_task["cancel_event"].set()
+            await install_task["task"]
+
+        cancel_event = asyncio.Event()
+        install_task["cancel_event"] = cancel_event
+
         status_text.value = "Installing mod..."
         progress_bar.value = 0
         size_text.value = "Downloaded: 0 MB"
@@ -304,54 +315,65 @@ def main(page: ft.Page):
                 last_graph_update = time.time()
                 with io.BytesIO() as f:
                     for chunk in r.iter_content(chunk_size=chunk_size):
+                        if cancel_event.is_set():
+                            return None  # Abort download
                         if chunk:
                             f.write(chunk)
                             downloaded += len(chunk)
                             total_bytes[0] = downloaded
-                            # Update size text
                             size_text.value = f"Downloaded: {downloaded / 1024 / 1024:.2f} MB"
-                            # Bandwidth calculation
                             now = time.time()
                             elapsed = now - last_time[0]
                             if elapsed > 0.5:
-                                bandwidth = (downloaded - last_bytes[0]) / elapsed / 1024 / 1024  # MB/s
+                                bandwidth = (downloaded - last_bytes[0]) / elapsed / 1024 / 1024
                                 bandwidth_value[0] = bandwidth
                                 bandwidth_text.value = f"Speed: {bandwidth:.2f} MB/s"
                                 last_time[0] = now
                                 last_bytes[0] = downloaded
-                            page.update()
+                            quick_update()
                             await loop.run_in_executor(None, callback, chunk, total, downloaded)
-                    # Final update
                     size_text.value = f"Downloaded: {downloaded / 1024 / 1024:.2f} MB"
                     bandwidth_text.value = f"Speed: {bandwidth_value[0]:.2f} MB/s"
-                    page.update()
+                    quick_update()
                     return f.getvalue()
 
         def progress_callback(value):
             progress_bar.value = value / 100
-            page.update()
+            quick_update()
 
-        # Patch ModManager to use our custom downloader for bandwidth tracking
-        async def patched_download_file(url):
-            return await download_file_with_bandwidth(url, lambda *_: None)
-        old_download_file = mod_manager._download_file
-        mod_manager._download_file = patched_download_file
+        async def do_install():
+            # Patch ModManager to use our custom downloader for bandwidth tracking
+            async def patched_download_file(url):
+                return await download_file_with_bandwidth(url, lambda *_: None)
+            old_download_file = mod_manager._download_file
+            mod_manager._download_file = patched_download_file
 
-        result = await mod_manager.install_mod(progress_callback)
-        status_text.value = result
-        mod_manager._download_file = old_download_file  # Restore original
-        page.update()
+            result = await mod_manager.install_mod(progress_callback)
+            if cancel_event.is_set():
+                status_text.value = "Installation cancelled."
+            else:
+                status_text.value = result
+            mod_manager._download_file = old_download_file  # Restore original
+            quick_update()
+
+        install_task["task"] = asyncio.create_task(do_install())
+        await install_task["task"]
 
     async def uninstall_mod_click(e):
+        # If install is running, cancel it and wait for it to finish before uninstalling
+        if install_task["task"] and not install_task["task"].done():
+            install_task["cancel_event"].set()
+            await install_task["task"]
+
         status_text.value = "Restoring original files..."
         progress_bar.value = 0
         quick_update()
         def progress_callback(value):
             progress_bar.value = value / 100
-            page.update()
+            quick_update()
         result = await mod_manager.restore_original_files(progress_callback)
         status_text.value = result
-        page.update()
+        quick_update()
 
     async def update_app_click(e):
         # Ensure version.txt is always checked in the same directory as the running executable or script
