@@ -508,10 +508,10 @@ def main(page: ft.Page):
         )
     # Social links (below the stats/info box, separated by a divider)
     SOCIAL_LINKS = [
-        ("ModDB", "https://www.moddb.com/", os.path.join(ASSETS_DIR, "moddb.png")),
-        ("YouTube", "https://youtube.com/", os.path.join(ASSETS_DIR, "youtube.png")),
-        ("Discord", "https://discord.gg/NeTyqrvbeY", os.path.join(ASSETS_DIR, "discord.png")),
-        ("Twitter", "https://twitter.com/", os.path.join(ASSETS_DIR, "twitter.png")),
+        ("ModDB", "https://www.moddb.com/members/thedoctor18", os.path.join(ASSETS_DIR, "moddb.png")),
+        ("YouTube", "https://www.youtube.com/@thedoctor199", os.path.join(ASSETS_DIR, "youtube.png")),
+        ("Discord", "https://discord.com/invite/8sa3f6ZpJk", os.path.join(ASSETS_DIR, "discord.png")),
+        ("Twitter", "https://x.com/thedoctor19181", os.path.join(ASSETS_DIR, "twitter.png")),
     ]
 
     def open_social(url):
