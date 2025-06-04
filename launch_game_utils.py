@@ -1,4 +1,6 @@
 from win_utils import get_aumid, launch_app
+import subprocess
+import sys
 
 async def launch_game_click(e, status_text=None, progress_bar=None, quick_update=None, page=None):
     """
@@ -9,7 +11,16 @@ async def launch_game_click(e, status_text=None, progress_bar=None, quick_update
         app_name = "Halo Wars 2"
         aumid = get_aumid(app_name)
         if aumid:
-            launch_app(aumid)
+            # Hide the command window completely
+            if sys.platform == "win32":
+                CREATE_NO_WINDOW = 0x08000000
+                subprocess.Popen(
+                    f'start explorer shell:appsfolder\\{aumid}',
+                    shell=True,
+                    creationflags=CREATE_NO_WINDOW
+                )
+            else:
+                launch_app(aumid)
             if status_text is not None:
                 status_text.value = f"Game launched! ({aumid})"
             if progress_bar is not None:
