@@ -397,10 +397,14 @@ def main(page: ft.Page):
             if aumid:
                 launch_app(aumid)
                 status_text.value = f"Game launched! ({aumid})"
+                progress_bar.value = 1.0  # Set progress bar to 100%
             else:
                 status_text.value = f"Could not find app with name '{app_name}'"
+                progress_bar.value = 0.0  # Set progress bar to 0%
         except Exception as ex:
             status_text.value = f"Failed to launch game: {ex}"
+            progress_bar.value = 0.0  # Set progress bar to 0%
+        quick_update()
         page.update()
 
     buttons = ft.Column([
@@ -502,13 +506,12 @@ def main(page: ft.Page):
                 padding=16,
             )
         )
-
     # Social links (below the stats/info box, separated by a divider)
     SOCIAL_LINKS = [
-        ("ModDB", "https://www.moddb.com/", ft.Icons.LINK),
-        ("YouTube", "https://youtube.com/", ft.Icons.YOUTUBE_SEARCHED_FOR),
-        ("Discord", "https://discord.gg/NeTyqrvbeY", ft.Icons.CHAT),
-        ("Twitter", "https://twitter.com/", ft.Icons.TRAVEL_EXPLORE),
+        ("ModDB", "https://www.moddb.com/", os.path.join(ASSETS_DIR, "moddb.png")),
+        ("YouTube", "https://youtube.com/", os.path.join(ASSETS_DIR, "youtube.png")),
+        ("Discord", "https://discord.gg/NeTyqrvbeY", os.path.join(ASSETS_DIR, "discord.png")),
+        ("Twitter", "https://twitter.com/", os.path.join(ASSETS_DIR, "twitter.png")),
     ]
 
     def open_social(url):
@@ -524,10 +527,14 @@ def main(page: ft.Page):
                 ft.Row(
                     [
                         ft.IconButton(
-                            icon,
+                            content=ft.Image(
+                                src=icon,
+                                width=32,
+                                height=32,
+                                fit=ft.ImageFit.CONTAIN,
+                            ),
                             tooltip=name,
                             on_click=lambda e, url=url: open_social(url),
-                            icon_size=32,
                             style=ft.ButtonStyle(
                                 shape=ft.RoundedRectangleBorder(radius=12),
                                 bgcolor={"": "#23272A"},
