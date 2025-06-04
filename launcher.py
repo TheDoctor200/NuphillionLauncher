@@ -523,23 +523,44 @@ def main(page: ft.Page):
     stack_children.append(
         ft.Container(
             content=ft.Column([
+                ft.Container(
+                    ft.Text(
+                        "TheDoctors Socials:",
+                        size=15,
+                        weight="bold",
+                        color="white",
+                        text_align=ft.TextAlign.CENTER,
+                    ),
+                    alignment=ft.alignment.center_left,
+                    padding=ft.padding.only(right=8),
+                ),
                 ft.Divider(height=24, thickness=2, color="#97E9E6"),  # Divider in dark color
                 ft.Row(
                     [
-                        ft.IconButton(
-                            content=ft.Image(
-                                src=icon,
-                                width=32,
-                                height=32,
-                                fit=ft.ImageFit.CONTAIN,
-                            ),
-                            tooltip=name,
-                            on_click=lambda e, url=url: open_social(url),
-                            style=ft.ButtonStyle(
-                                shape=ft.RoundedRectangleBorder(radius=12),
-                                bgcolor={"": "#23272A"},
-                                color={"": "#fff"},
-                            ),
+                        ft.Column(
+                            [
+                                ft.IconButton(
+                                    content=ft.Image(
+                                        src=icon,
+                                        width=32,
+                                        height=32,
+                                        fit=ft.ImageFit.CONTAIN,
+                                    ),
+                                    tooltip=name,
+                                    on_click=lambda e, url=url: open_social(url),
+                                    style=ft.ButtonStyle(
+                                        bgcolor={"": ft.Colors.with_opacity(0.35, ft.Colors.BLUE_GREY_900)},
+                                        shape=ft.RoundedRectangleBorder(radius=12),
+                                    ),
+                                ),
+                                ft.Text(
+                                    name,
+                                    size=12,
+                                    color="white",
+                                    text_align=ft.TextAlign.CENTER,
+                                ),
+                            ],
+                            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                         )
                         for name, url, icon in SOCIAL_LINKS
                     ],
@@ -553,6 +574,9 @@ def main(page: ft.Page):
             top=470,  # Move both divider and social links further down
             width=220,
             bgcolor=None,
+            border_radius=None,
+            blur=None,
+            shadow=None,
             padding=0,
         )
     )
