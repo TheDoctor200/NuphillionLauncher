@@ -145,9 +145,9 @@ class ModManager:
 
 mod_manager = ModManager(appData)
 
-# --- Move get_aumid and launch_app to win_utils.py ---
-from win_utils import get_aumid, launch_app
-from update_utils import check_for_update
+# Use relative imports for local modules for flet build compatibility
+from .win_utils import get_aumid, launch_app
+from .update_utils import check_for_update
 
 
 def main(page: ft.Page):
@@ -161,10 +161,17 @@ def main(page: ft.Page):
     page.vertical_alignment = ft.MainAxisAlignment.CENTER
     page.padding = 0
 
-    ASSETS_DIR = os.path.join(os.path.dirname(__file__), "assets")
+    # Use sys._MEIPASS for asset paths if running as a bundled app
+    if hasattr(sys, "_MEIPASS"):
+        BASE_DIR = sys._MEIPASS
+    else:
+        BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+    ASSETS_DIR = os.path.join(BASE_DIR, "assets")
     bg_path = os.path.join(ASSETS_DIR, "holo_table.jpg")
     icon_path = os.path.join(ASSETS_DIR, "The_Vanquished.png")
     favicon_path = os.path.join(ASSETS_DIR, "favicon.ico")
+    VERSION_FILE = os.path.join(BASE_DIR, "version.txt")
 
     # Set window icon, app icon, and tray icon (if supported)
     if os.path.exists(favicon_path):
@@ -246,8 +253,6 @@ def main(page: ft.Page):
     size_text = ft.Text("Downloaded: 0 MB", color="white", size=15)
     bandwidth_text = ft.Text("Speed: 0.00 MB/s", color="white", size=15)
     stats_label = ft.Text("Download Statistics:", color="white", size=16, weight="bold")
-
-    VERSION_FILE = os.path.join(os.path.dirname(__file__), "version.txt")
 
     # --- Download/Install/Uninstall cancellation state ---
     install_task = {"task": None, "cancel_event": None}
@@ -507,7 +512,8 @@ def main(page: ft.Page):
     ]
 
     def open_social(url):
-        from social_utils import open_social_link
+        # Use relative import for flet build compatibility
+        from .social_utils import open_social_link
         open_social_link(url)
 
     # Add a divider and the social links row below the stats/info box

@@ -4,8 +4,12 @@ import requests
 import subprocess
 
 async def check_for_update(page, status_text, progress_bar, quick_update):
-    exe_dir = os.path.dirname(sys.executable if getattr(sys, 'frozen', False) else os.path.abspath(__file__))
-    VERSION_FILE = os.path.join(exe_dir, "version.txt")
+    # Use sys._MEIPASS for version.txt if running as a bundled app
+    if hasattr(sys, "_MEIPASS"):
+        BASE_DIR = sys._MEIPASS
+    else:
+        BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    VERSION_FILE = os.path.join(BASE_DIR, "version.txt")
     local_version = None
     if os.path.exists(VERSION_FILE):
         with open(VERSION_FILE, "r", encoding="utf-8") as f:
