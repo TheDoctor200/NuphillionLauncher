@@ -9,7 +9,6 @@ import sys
 import time
 import collections
 from concurrent.futures import ThreadPoolExecutor
-import subprocess  # <-- add this import
 
 # Constants
 VERSION = '1_11_2931_2'
@@ -146,35 +145,8 @@ class ModManager:
 
 mod_manager = ModManager(appData)
 
-
-def get_aumid(app_name_filter="Halo Wars 2"):
-    # PowerShell command to list Start Menu apps
-    ps_command = f'''
-    Get-StartApps | Where-Object {{$_.Name -like "*{app_name_filter}*"}} | Select-Object -ExpandProperty AppID
-    '''
-    # Hide the PowerShell window by using creationflags
-    CREATE_NO_WINDOW = 0x08000000
-    result = subprocess.run(
-        ["powershell", "-Command", ps_command],
-        capture_output=True,
-        text=True,
-        creationflags=CREATE_NO_WINDOW
-    )
-    aumids = result.stdout.strip().splitlines()
-
-    if not aumids:
-        print(f"No app found with name containing '{app_name_filter}'")
-        return None
-    else:
-        # Optionally choose the first match if there are several
-        return aumids[0].strip()
-
-def launch_app(aumid):
-    try:
-        subprocess.run(f'start explorer shell:appsfolder\\{aumid}', shell=True)
-        print(f"Launched: {aumid}")
-    except Exception as e:
-        print(f"Failed to launch app: {e}")
+# --- Move get_aumid and launch_app to win_utils.py ---
+from win_utils import get_aumid, launch_app
 
 
 def main(page: ft.Page):
@@ -595,8 +567,8 @@ def main(page: ft.Page):
     ]
 
     def open_social(url):
-        import webbrowser
-        webbrowser.open(url)
+        from social_utils import open_social_link
+        open_social_link(url)
 
     # Add a divider and the social links row below the stats/info box
     stack_children.append(
