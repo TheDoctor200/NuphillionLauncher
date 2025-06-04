@@ -242,7 +242,7 @@ def main(page: ft.Page):
 
     status_quote = ft.Text("Manage your Nuphillion mod install with ease", color="white", size=14, italic=True)
     status_label = ft.Text("Status:", color="white", size=18, weight="bold")
-    progress_bar = ft.ProgressBar(width=500, value=0)
+    progress_bar = ft.ProgressBar(width=500, value=0, color="#97E9E6")
     status_text = ft.Text("", color="white", size=16)
 
     # --- Bandwidth Graph State ---
@@ -554,11 +554,10 @@ def main(page: ft.Page):
                     stats_label,
                     size_text,
                     bandwidth_text,
-                    ft.Container(  # Launch Game button directly under download statistics
+                    ft.Container(
                         create_button("Launch Game", launch_game_click, "#43A047", ft.Icons.PLAY_ARROW),
                         padding=ft.padding.only(top=10)
                     ),
-                    # Add HaloWars2Preview.gif with beautiful corners and spacing
                     ft.Container(
                         ft.Image(
                             src=os.path.join(ASSETS_DIR, "HaloWars2Preview.gif"),
@@ -567,7 +566,7 @@ def main(page: ft.Page):
                             fit=ft.ImageFit.CONTAIN,
                             border_radius=18,
                         ),
-                        padding=ft.padding.only(top=5, bottom=0),  # Reduced from 32 to 16
+                        padding=ft.padding.only(top=5, bottom=0),
                         alignment=ft.alignment.center,
                     )
                 ], spacing=6),
@@ -587,9 +586,55 @@ def main(page: ft.Page):
             )
         )
 
+    # Social links (below the stats/info box, separated by a divider)
+    SOCIAL_LINKS = [
+        ("ModDB", "https://www.moddb.com/", ft.Icons.LINK),
+        ("YouTube", "https://youtube.com/", ft.Icons.YOUTUBE_SEARCHED_FOR),
+        ("Discord", "https://discord.gg/NeTyqrvbeY", ft.Icons.CHAT),
+        ("Twitter", "https://twitter.com/", ft.Icons.TRAVEL_EXPLORE),
+    ]
+
+    def open_social(url):
+        import webbrowser
+        webbrowser.open(url)
+
+    # Add a divider and the social links row below the stats/info box
+    stack_children.append(
+        ft.Container(
+            content=ft.Column([
+                ft.Divider(height=24, thickness=2, color="#97E9E6"),  # Divider in dark color
+                ft.Row(
+                    [
+                        ft.IconButton(
+                            icon,
+                            tooltip=name,
+                            on_click=lambda e, url=url: open_social(url),
+                            icon_size=32,
+                            style=ft.ButtonStyle(
+                                shape=ft.RoundedRectangleBorder(radius=12),
+                                bgcolor={"": "#23272A"},
+                                color={"": "#fff"},
+                            ),
+                        )
+                        for name, url, icon in SOCIAL_LINKS
+                    ],
+                    alignment=ft.MainAxisAlignment.END,
+                    spacing=8,
+                ),
+            ],
+            horizontal_alignment=ft.CrossAxisAlignment.END,
+            ),
+            left=20,
+            top=470,  # Move both divider and social links further down
+            width=220,
+            bgcolor=None,
+            padding=0,
+        )
+    )
+
     page.add(
         ft.Stack([
-            *stack_children
+            *stack_children,
         ])
     )
 
