@@ -145,9 +145,9 @@ class ModManager:
 
 mod_manager = ModManager(appData)
 
-# Use relative imports for local modules for flet build compatibility
-from .win_utils import get_aumid, launch_app
-from .update_utils import check_for_update
+# Use absolute imports for local modules for script/flet build compatibility
+from win_utils import get_aumid, launch_app
+from update_utils import check_for_update
 
 
 def main(page: ft.Page):
@@ -512,8 +512,8 @@ def main(page: ft.Page):
     ]
 
     def open_social(url):
-        # Use relative import for flet build compatibility
-        from .social_utils import open_social_link
+        # Use absolute import for flet build compatibility
+        from social_utils import open_social_link
         open_social_link(url)
 
     # Add a divider and the social links row below the stats/info box
