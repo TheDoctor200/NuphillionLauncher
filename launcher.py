@@ -148,7 +148,8 @@ mod_manager = ModManager(appData)
 # Use absolute imports for local modules for script/flet build compatibility
 from win_utils import get_aumid, launch_app
 from update_utils import check_for_update
-
+from social_utils import SOCIAL_LINKS, open_social_links_section
+from launch_game_utils import launch_game_click
 
 def main(page: ft.Page):
     page.title = "Nuphillion Mod Manager"
@@ -389,23 +390,15 @@ def main(page: ft.Page):
             icon_color="white" if icon else None
         )
 
-    async def launch_game_click(e):
-        # Launch Halo Wars 2 (or other app) via AUMID
-        try:
-            app_name = "Halo Wars 2"
-            aumid = get_aumid(app_name)
-            if aumid:
-                launch_app(aumid)
-                status_text.value = f"Game launched! ({aumid})"
-                progress_bar.value = 1.0  # Set progress bar to 100%
-            else:
-                status_text.value = f"Could not find app with name '{app_name}'"
-                progress_bar.value = 0.0  # Set progress bar to 0%
-        except Exception as ex:
-            status_text.value = f"Failed to launch game: {ex}"
-            progress_bar.value = 0.0  # Set progress bar to 0%
-        quick_update()
-        page.update()
+    # Define the async handler before using it in create_button
+    async def launch_game_click_handler(e):
+        await launch_game_click(
+            e,
+            status_text=status_text,
+            progress_bar=progress_bar,
+            quick_update=quick_update,
+            page=page
+        )
 
     buttons = ft.Column([
         create_button("Install Mod", install_mod_click, "#00796B", ft.Icons.DOWNLOAD),
@@ -476,7 +469,7 @@ def main(page: ft.Page):
                     size_text,
                     bandwidth_text,
                     ft.Container(
-                        create_button("Launch Game", launch_game_click, "#43A047", ft.Icons.PLAY_ARROW),
+                        create_button("Launch Game", launch_game_click_handler, "#43A047", ft.Icons.PLAY_ARROW),
                         padding=ft.padding.only(top=10)
                     ),
                     ft.Container(
@@ -507,78 +500,8 @@ def main(page: ft.Page):
             )
         )
     # Social links (below the stats/info box, separated by a divider)
-    SOCIAL_LINKS = [
-        ("ModDB", "https://www.moddb.com/members/thedoctor18", os.path.join(ASSETS_DIR, "moddb.png")),
-        ("YouTube", "https://www.youtube.com/@thedoctor199", os.path.join(ASSETS_DIR, "youtube.png")),
-        ("Discord", "https://discord.com/invite/8sa3f6ZpJk", os.path.join(ASSETS_DIR, "discord.png")),
-        ("Twitter", "https://x.com/thedoctor19181", os.path.join(ASSETS_DIR, "twitter.png")),
-    ]
-
-    def open_social(url):
-        # Use absolute import for flet build compatibility
-        from social_utils import open_social_link
-        open_social_link(url)
-
-    # Add a divider and the social links row below the stats/info box
     stack_children.append(
-        ft.Container(
-            content=ft.Column([
-                ft.Container(
-                    ft.Text(
-                        "TheDoctors Socials:",
-                        size=15,
-                        weight="bold",
-                        color="white",
-                        text_align=ft.TextAlign.CENTER,
-                    ),
-                    alignment=ft.alignment.center_left,
-                    padding=ft.padding.only(right=8),
-                ),
-                ft.Divider(height=24, thickness=2, color="#97E9E6"),  # Divider in dark color
-                ft.Row(
-                    [
-                        ft.Column(
-                            [
-                                ft.IconButton(
-                                    content=ft.Image(
-                                        src=icon,
-                                        width=32,
-                                        height=32,
-                                        fit=ft.ImageFit.CONTAIN,
-                                    ),
-                                    tooltip=name,
-                                    on_click=lambda e, url=url: open_social(url),
-                                    style=ft.ButtonStyle(
-                                        bgcolor={"": ft.Colors.with_opacity(0.35, ft.Colors.BLUE_GREY_900)},
-                                        shape=ft.RoundedRectangleBorder(radius=12),
-                                    ),
-                                ),
-                                ft.Text(
-                                    name,
-                                    size=12,
-                                    color="white",
-                                    text_align=ft.TextAlign.CENTER,
-                                ),
-                            ],
-                            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                        )
-                        for name, url, icon in SOCIAL_LINKS
-                    ],
-                    alignment=ft.MainAxisAlignment.END,
-                    spacing=8,
-                ),
-            ],
-            horizontal_alignment=ft.CrossAxisAlignment.END,
-            ),
-            left=20,
-            top=470,  # Move both divider and social links further down
-            width=220,
-            bgcolor=None,
-            border_radius=None,
-            blur=None,
-            shadow=None,
-            padding=0,
-        )
+        open_social_links_section(ASSETS_DIR, left=20, top=470)
     )
 
     page.add(
