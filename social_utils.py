@@ -9,7 +9,6 @@ SOCIAL_LINKS = [
     ("YouTube", "https://www.youtube.com/@thedoctor199", "youtube.png"),
     ("Discord", "https://discord.com/invite/8sa3f6ZpJk", "discord.png"),
     ("GitHub", "https://github.com/TheDoctor200", "github.png"),  # <-- GitHub entry
-    ("Twitter", "https://x.com/thedoctor19181", "twitter.png"),
 ]
 
 def open_social_link(url):
