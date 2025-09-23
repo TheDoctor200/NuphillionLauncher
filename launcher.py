@@ -188,6 +188,7 @@ def main(page: ft.Page):
     bg_width, bg_height = 1500, 844  # fallback default
     if os.path.exists(bg_path):
         try:
+            from PIL import Image
             with Image.open(bg_path) as img:
                 bg_width, bg_height = img.size
         except Exception:
@@ -258,12 +259,115 @@ def main(page: ft.Page):
     # --- Download/Install/Uninstall cancellation state ---
     install_task = {"task": None, "cancel_event": None}
 
-    def quick_update():
-        # Only update the UI, not the whole page (faster for small changes)
-        status_text.update()
-        progress_bar.update()
-        size_text.update()
-        bandwidth_text.update()
+    # --- Responsive sizing for small displays ---
+    def get_responsive_sizes():
+        """Get responsive sizes based on window dimensions"""
+        window_width = page.window_width or 1200
+        window_height = page.window_height or 800
+        
+        # Determine if we're on a small display
+        is_small_display = window_width < 1000 or window_height < 700
+        
+        if is_small_display:
+            return {
+                'button_width': 200,
+                'button_height': 45,
+                'title_size': 20,
+                'quote_size': 12,
+                'status_size': 14,
+                'progress_width': 400,
+                'stats_width': 180,
+                'preview_width': 150,
+                'preview_height': 100,
+                'icon_size': 60,
+                'content_padding': 40,
+                'stats_top': 120,
+                'social_top': 400
+            }
+        else:
+            return {
+                'button_width': 250,
+                'button_height': 50,
+                'title_size': 24,
+                'quote_size': 14,
+                'status_size': 16,
+                'progress_width': 500,
+                'stats_width': 220,
+                'preview_width': 180,
+                'preview_height': 120,
+                'icon_size': 80,
+                'content_padding': 80,
+                'stats_top': 150,
+                'social_top': 470
+            }
+
+    import threading
+
+    # --- News Feed Dialog with Discord Bot API ---
+    # You must run your own backend (Flask/FastAPI/etc.) that your Discord bot posts news to,
+    # or your bot exposes an endpoint that returns news as JSON.
+    # Here, we fetch news from a custom REST API endpoint (replace with your actual endpoint).
+    NEWS_API_URL = "https://your-news-api-endpoint.example.com/news"  # <-- Replace with your endpoint
+
+    def show_news_feed(e):
+        def run_fetch_and_show():
+            news_items = []
+            try:
+                resp = requests.get(NEWS_API_URL, timeout=10)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    # Expecting a list of dicts: [{"title": "...", "body": "...", "date": "..."}]
+                    news_items = data if isinstance(data, list) else []
+                else:
+                    news_items = [{"title": "Error", "body": f"Failed to fetch news: {resp.status_code}"}]
+            except Exception as ex:
+                news_items = [{"title": "Error", "body": str(ex)}]
+
+            def close_news_dialog():
+                if page.dialog:
+                    page.dialog.open = False
+                    page.update()
+
+            news_content = ft.Column([
+                ft.Text("Latest News", size=20, weight="bold", color="white"),
+                ft.Divider(color="white", height=1),
+                *[
+                    ft.Container(
+                        ft.Column([
+                            ft.Text(item.get("title", ""), size=16, weight="bold", color="white"),
+                            ft.Text(item.get("body", ""), size=14, color="white"),
+                            ft.Text(item.get("date", ""), size=12, color="gray", italic=True) if item.get("date") else None,
+                        ], spacing=8),
+                        padding=10,
+                        bgcolor=ft.Colors.with_opacity(0.2, ft.Colors.BLUE_GREY_900),
+                        border_radius=8,
+                        margin=ft.margin.only(bottom=8)
+                    )
+                    for item in news_items
+                ]
+            ], spacing=10, scroll=ft.ScrollMode.AUTO)
+
+            dialog = ft.AlertDialog(
+                modal=True,
+                title=ft.Text("News Feed", color="white", size=18, weight="bold"),
+                content=ft.Container(
+                    content=news_content,
+                    width=400,
+                    height=300,
+                    bgcolor=ft.Colors.with_opacity(0.9, ft.Colors.BLUE_GREY_900),
+                    border_radius=12,
+                    padding=20,
+                ),
+                actions=[
+                    ft.TextButton("Close", on_click=lambda e: close_news_dialog()),
+                ],
+                actions_alignment=ft.MainAxisAlignment.END,
+            )
+            page.dialog = dialog
+            dialog.open = True
+            page.update()
+
+        threading.Thread(target=run_fetch_and_show).start()
 
     async def install_mod_click(e):
         # Cancel any previous install if running
@@ -379,13 +483,14 @@ def main(page: ft.Page):
         webbrowser.open("https://discord.gg/NeTyqrvbeY")
 
     def create_button(text, on_click, color, icon=None):
+        sizes = get_responsive_sizes()
         return ft.ElevatedButton(
             text,
             on_click=on_click,
             bgcolor=color,
             color="white",
-            width=250,
-            height=50,
+            width=sizes['button_width'],
+            height=sizes['button_height'],
             icon=icon,
             icon_color="white" if icon else None
         )
@@ -408,12 +513,21 @@ def main(page: ft.Page):
         create_button("Open Discord", open_discord, "#6200EE", ft.Icons.CHAT),
     ], spacing=10, alignment=ft.MainAxisAlignment.CENTER)
 
+    # Get responsive sizes
+    sizes = get_responsive_sizes()
+    
+    # Update text elements with responsive sizing
+    status_quote = ft.Text("Manage your Nuphillion mod install with ease", color="white", size=sizes['quote_size'], italic=True)
+    status_label = ft.Text("Status:", color="white", size=18, weight="bold")
+    progress_bar = ft.ProgressBar(width=sizes['progress_width'], value=0, color="#97E9E6")
+    status_text = ft.Text("", color="white", size=sizes['status_size'])
+
     # Center UI elements vertically and horizontally
     content = ft.Container(
         content=ft.Column([
             ft.Text(
                 "Nuphillion Mod Manager",
-                size=24,
+                size=sizes['title_size'],
                 weight="bold",
                 color="white",
                 text_align=ft.TextAlign.CENTER,
@@ -432,7 +546,7 @@ def main(page: ft.Page):
         horizontal_alignment=ft.CrossAxisAlignment.CENTER
         ),
         alignment=ft.alignment.center,
-        padding=ft.padding.only(top=80),
+        padding=ft.padding.only(top=sizes['content_padding']),
     )
 
     stack_children = []
@@ -440,6 +554,53 @@ def main(page: ft.Page):
         dynamic_bg = DynamicBg()
         stack_children.append(dynamic_bg)
         def on_resize(e):
+            # Update responsive sizing when window is resized
+            global sizes
+            sizes = get_responsive_sizes()
+            
+            # Update UI elements with new sizes
+            status_quote.size = sizes['quote_size']
+            status_text.size = sizes['status_size']
+            progress_bar.width = sizes['progress_width']
+            
+            # Update content container padding
+            content.padding = ft.padding.only(top=sizes['content_padding'])
+            
+            # Update icon size if it exists
+            if icon:
+                icon.content.width = sizes['icon_size']
+                icon.content.height = sizes['icon_size']
+            
+            # Update stats container positioning and sizing
+            for child in stack_children:
+                if hasattr(child, 'left') and child.left == 20:  # Stats container
+                    child.top = sizes['stats_top']
+                    child.width = sizes['stats_width']
+                    # Update preview image size
+                    for col_child in child.content.controls:
+                        if hasattr(col_child, 'content') and hasattr(col_child.content, 'width'):
+                            if col_child.content.width == sizes['preview_width']:  # Preview image
+                                col_child.content.width = sizes['preview_width']
+                                col_child.content.height = sizes['preview_height']
+                                break
+            
+            # Update social links positioning
+            for child in stack_children:
+                if hasattr(child, 'left') and child.left == 20 and hasattr(child, 'top') and child.top == sizes['social_top']:
+                    child.top = sizes['social_top']
+                    break
+            
+            # Update button sizes
+            for button in buttons.controls:
+                button.width = sizes['button_width']
+                button.height = sizes['button_height']
+            
+            # Update title size
+            for child in content.content.controls:
+                if hasattr(child, 'size') and child.size == sizes['title_size']:
+                    child.size = sizes['title_size']
+                    break
+            
             dynamic_bg.resize(page.window_width, page.window_height)
             page.update()  # Force the app to update on every resize
         page.on_resize = on_resize  # Ensures background resizes with window
@@ -450,8 +611,8 @@ def main(page: ft.Page):
         icon = ft.Container(
             content=ft.Image(
                 src=icon_path,
-                width=80,
-                height=80,
+                width=sizes['icon_size'],
+                height=sizes['icon_size'],
                 fit=ft.ImageFit.CONTAIN,
             ),
             alignment=ft.alignment.top_left,
@@ -475,8 +636,8 @@ def main(page: ft.Page):
                     ft.Container(
                         ft.Image(
                             src=os.path.join(ASSETS_DIR, "HaloWars2Preview.gif"),
-                            width=180,
-                            height=120,
+                            width=sizes['preview_width'],
+                            height=sizes['preview_height'],
                             fit=ft.ImageFit.CONTAIN,
                             border_radius=18,
                         ),
@@ -485,8 +646,8 @@ def main(page: ft.Page):
                     )
                 ], spacing=6),
                 left=20,
-                top=150,
-                width=220,
+                top=sizes['stats_top'],
+                width=sizes['stats_width'],
                 bgcolor=ft.Colors.with_opacity(0.35, ft.Colors.BLUE_GREY_900),
                 border_radius=16,
                 blur=20,
@@ -499,10 +660,35 @@ def main(page: ft.Page):
                 padding=16,
             )
         )
+    
+    # Add News Feed button to top right
+    news_button = ft.Container(
+        content=ft.ElevatedButton(
+            "📰 News",
+            on_click=show_news_feed,
+            bgcolor=ft.Colors.with_opacity(0.8, ft.Colors.ORANGE_600),
+            color="white",
+            width=100,
+            height=40,
+            icon=ft.Icons.NEWSPAPER,
+            icon_color="white",
+        ),
+        alignment=ft.alignment.top_right,
+        padding=20,
+    )
+    stack_children.append(news_button)
+    
     # Social links (below the stats/info box, separated by a divider)
     stack_children.append(
-        open_social_links_section(ASSETS_DIR, left=20, top=470)
+        open_social_links_section(ASSETS_DIR, left=20, top=sizes['social_top'])
     )
+
+    # Define quick_update before any function that uses it
+    def quick_update():
+        status_text.update()
+        progress_bar.update()
+        size_text.update()
+        bandwidth_text.update()
 
     page.add(
         ft.Stack([
