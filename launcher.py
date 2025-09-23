@@ -301,74 +301,6 @@ def main(page: ft.Page):
                 'social_top': 470
             }
 
-    import threading
-
-    # --- News Feed Dialog with Discord Bot API ---
-    # You must run your own backend (Flask/FastAPI/etc.) that your Discord bot posts news to,
-    # or your bot exposes an endpoint that returns news as JSON.
-    # Here, we fetch news from a custom REST API endpoint (replace with your actual endpoint).
-    NEWS_API_URL = "https://your-news-api-endpoint.example.com/news"  # <-- Replace with your endpoint
-
-    def show_news_feed(e):
-        def run_fetch_and_show():
-            news_items = []
-            try:
-                resp = requests.get(NEWS_API_URL, timeout=10)
-                if resp.status_code == 200:
-                    data = resp.json()
-                    # Expecting a list of dicts: [{"title": "...", "body": "...", "date": "..."}]
-                    news_items = data if isinstance(data, list) else []
-                else:
-                    news_items = [{"title": "Error", "body": f"Failed to fetch news: {resp.status_code}"}]
-            except Exception as ex:
-                news_items = [{"title": "Error", "body": str(ex)}]
-
-            def close_news_dialog():
-                if page.dialog:
-                    page.dialog.open = False
-                    page.update()
-
-            news_content = ft.Column([
-                ft.Text("Latest News", size=20, weight="bold", color="white"),
-                ft.Divider(color="white", height=1),
-                *[
-                    ft.Container(
-                        ft.Column([
-                            ft.Text(item.get("title", ""), size=16, weight="bold", color="white"),
-                            ft.Text(item.get("body", ""), size=14, color="white"),
-                            ft.Text(item.get("date", ""), size=12, color="gray", italic=True) if item.get("date") else None,
-                        ], spacing=8),
-                        padding=10,
-                        bgcolor=ft.Colors.with_opacity(0.2, ft.Colors.BLUE_GREY_900),
-                        border_radius=8,
-                        margin=ft.margin.only(bottom=8)
-                    )
-                    for item in news_items
-                ]
-            ], spacing=10, scroll=ft.ScrollMode.AUTO)
-
-            dialog = ft.AlertDialog(
-                modal=True,
-                title=ft.Text("News Feed", color="white", size=18, weight="bold"),
-                content=ft.Container(
-                    content=news_content,
-                    width=400,
-                    height=300,
-                    bgcolor=ft.Colors.with_opacity(0.9, ft.Colors.BLUE_GREY_900),
-                    border_radius=12,
-                    padding=20,
-                ),
-                actions=[
-                    ft.TextButton("Close", on_click=lambda e: close_news_dialog()),
-                ],
-                actions_alignment=ft.MainAxisAlignment.END,
-            )
-            page.dialog = dialog
-            dialog.open = True
-            page.update()
-
-        threading.Thread(target=run_fetch_and_show).start()
-
     async def install_mod_click(e):
         # Cancel any previous install if running
         if install_task["task"] and not install_task["task"].done():
@@ -660,23 +592,6 @@ def main(page: ft.Page):
                 padding=16,
             )
         )
-    
-    # Add News Feed button to top right
-    news_button = ft.Container(
-        content=ft.ElevatedButton(
-            "📰 News",
-            on_click=show_news_feed,
-            bgcolor=ft.Colors.with_opacity(0.8, ft.Colors.ORANGE_600),
-            color="white",
-            width=100,
-            height=40,
-            icon=ft.Icons.NEWSPAPER,
-            icon_color="white",
-        ),
-        alignment=ft.alignment.top_right,
-        padding=20,
-    )
-    stack_children.append(news_button)
     
     # Social links (below the stats/info box, separated by a divider)
     stack_children.append(
