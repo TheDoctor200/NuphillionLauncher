@@ -7,7 +7,6 @@ import asyncio
 import io
 import sys
 import time
-import webbrowser
 import collections
 from concurrent.futures import ThreadPoolExecutor
 
@@ -550,8 +549,6 @@ def main(page: ft.Page):
             ),
             alignment=ft.alignment.top_left,
             padding=20,
-            on_click=lambda _: webbrowser.open("https://thedoctor.ct.ws"),  # Replace with your actual website URL
-            data=True,  # Enable clicks
         )
 
     stack_children.append(content)
