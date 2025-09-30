@@ -17,7 +17,7 @@ A modern launcher for Halo Wars 2, focused on easy mod management and updates fo
 
 ## 📦 Installation
 
-You can either build from source or use the precompiled Windows installer available on the [Releases Page](https://github.com/TheDoctor200/NuphillionLauncher/releases/latest).
+You can either build from source (windows) or use the precompiled Windows installer available on the [Releases Page](https://github.com/TheDoctor200/NuphillionLauncher/releases/latest).
 
 ```sh
 pip install -r requirements.txt
@@ -52,7 +52,7 @@ python launcher.py
 
 ## 🙏 Credits
 
-- **CutesyThrower12** – Mod developmen
+- **CutesyThrower12** – Mod development
 - **TheDoctor200** – Launcher development, update system, UI/UX
 
 ---
