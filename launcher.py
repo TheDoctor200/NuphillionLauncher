@@ -9,6 +9,7 @@ import sys
 import time
 import collections
 from concurrent.futures import ThreadPoolExecutor
+from mod_cache import ModCache
 
 # Constants
 VERSION = '1_11_2931_2'
@@ -30,6 +31,10 @@ class ModManager:
         if os.path.isdir(self.localPkgDir(VERSION_PTR)):
             self.version = VERSION_PTR
         self._executor = ThreadPoolExecutor(max_workers=1)
+        
+        # Initialize mod cache
+        cache_dir = os.path.join(appData, "NuphillionCache")
+        self.mod_cache = ModCache(cache_dir)
 
     def localPkgDir(self, version=None):
         return os.path.join(self.localStateDir, f"GTS\\{version or self.version}_active")
@@ -78,12 +83,36 @@ class ModManager:
         try:
             self.ensure_directories()
             progress_callback(0)
-            content = await self._download_file(RELEASE_URI)
-            if not content:
-                return "Failed to download mod."
-
-            progress_callback(20)
             
+            # Check if update is available
+            mod_name = "nuphillion"
+            remote_info = self.mod_cache.get_remote_version_info(RELEASE_URI)
+            
+            cached_file = self.mod_cache.get_cached_file_path(mod_name)
+            use_cache = False
+            
+            if os.path.exists(cached_file) and not self.mod_cache.is_update_available(mod_name, remote_info):
+                # Use cached version
+                use_cache = True
+                with open(cached_file, 'rb') as f:
+                    content = f.read()
+                progress_callback(20)
+            else:
+                # Download new version
+                content = await self._download_file(RELEASE_URI)
+                if not content:
+                    return "Failed to download mod."
+                
+                # Save to cache
+                with open(cached_file, 'wb') as f:
+                    f.write(content)
+                
+                # Update cache info
+                if remote_info:
+                    self.mod_cache.update_cache(mod_name, remote_info)
+                
+                progress_callback(20)
+
             self.mod_cleanup()
             with zipfile.ZipFile(io.BytesIO(content)) as mod_zip:
                 # Get only .pkg and .xml files
@@ -111,7 +140,11 @@ class ModManager:
             if not self.local_mod_exists():
                 return "Installation failed: Files not properly installed"
 
-            return "Mod installation complete!"
+            result_msg = "Mod installation complete!"
+            if use_cache:
+                result_msg += " (Used cached version)"
+            return result_msg
+            
         except Exception as e:
             print(f"Installation error: {e}")
             return f"Installation failed: {str(e)}"
@@ -119,12 +152,33 @@ class ModManager:
     async def restore_original_files(self, progress_callback):
         try:
             progress_callback(0)
-            content = await self._download_file(OG_FILES_URL)
-            if not content:
-                return "Failed to download original files."
-
-            progress_callback(20)
             
+            # Check cache for original files
+            mod_name = "hw2_original"
+            remote_info = self.mod_cache.get_remote_version_info(OG_FILES_URL)
+            
+            cached_file = self.mod_cache.get_cached_file_path(mod_name)
+            use_cache = False
+            
+            if os.path.exists(cached_file) and not self.mod_cache.is_update_available(mod_name, remote_info):
+                use_cache = True
+                with open(cached_file, 'rb') as f:
+                    content = f.read()
+                progress_callback(20)
+            else:
+                content = await self._download_file(OG_FILES_URL)
+                if not content:
+                    return "Failed to download original files."
+                
+                with open(cached_file, 'wb') as f:
+                    f.write(content)
+                
+                if remote_info:
+                    self.mod_cache.update_cache(mod_name, remote_info)
+                
+                progress_callback(20)
+            
+            # ...existing restore code...
             self.mod_cleanup()
             with zipfile.ZipFile(io.BytesIO(content)) as og_zip:
                 total_files = len(og_zip.namelist())
@@ -137,7 +191,11 @@ class ModManager:
                     progress = 20 + int((i + 1) / total_files * 80)
                     progress_callback(progress)
 
-            return "Original files restored successfully!"
+            result_msg = "Original files restored successfully!"
+            if use_cache:
+                result_msg += " (Used cached version)"
+            return result_msg
+            
         except Exception as e:
             print(f"Restore error: {e}")
             return f"Restore failed: {str(e)}"
