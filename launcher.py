@@ -103,6 +103,9 @@ class ModManager:
                 if not content:
                     return "Failed to download mod."
                 
+                # Clean up old versions before saving new one
+                self.mod_cache.cleanup_old_versions(mod_name, keep_current=False)
+                
                 # Save to cache
                 with open(cached_file, 'wb') as f:
                     f.write(content)
@@ -169,6 +172,9 @@ class ModManager:
                 content = await self._download_file(OG_FILES_URL)
                 if not content:
                     return "Failed to download original files."
+                
+                # Clean up old versions before saving new one
+                self.mod_cache.cleanup_old_versions(mod_name, keep_current=False)
                 
                 with open(cached_file, 'wb') as f:
                     f.write(content)

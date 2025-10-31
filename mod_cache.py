@@ -2,6 +2,7 @@ import os
 import json
 import hashlib
 import requests
+import glob
 
 class ModCache:
     def __init__(self, cache_dir):
@@ -74,3 +75,38 @@ class ModCache:
     def get_cached_file_path(self, mod_name):
         """Get the path to cached mod file"""
         return os.path.join(self.cache_dir, f"{mod_name}.zip")
+    
+    def cleanup_old_versions(self, mod_name, keep_current=True):
+        """Delete old cached versions of a mod"""
+        try:
+            # Get pattern for this mod's cached files
+            pattern = os.path.join(self.cache_dir, f"{mod_name}*.zip")
+            old_files = glob.glob(pattern)
+            
+            current_file = self.get_cached_file_path(mod_name)
+            
+            for old_file in old_files:
+                # Skip the current version if keep_current is True
+                if keep_current and old_file == current_file:
+                    continue
+                
+                try:
+                    os.remove(old_file)
+                    print(f"Deleted old cache: {old_file}")
+                except Exception as e:
+                    print(f"Failed to delete {old_file}: {e}")
+        except Exception as e:
+            print(f"Cleanup error: {e}")
+    
+    def get_cache_size(self):
+        """Get total size of cache directory in MB"""
+        total_size = 0
+        try:
+            for dirpath, dirnames, filenames in os.walk(self.cache_dir):
+                for filename in filenames:
+                    filepath = os.path.join(dirpath, filename)
+                    if os.path.exists(filepath):
+                        total_size += os.path.getsize(filepath)
+        except Exception as e:
+            print(f"Error calculating cache size: {e}")
+        return total_size / (1024 * 1024)  # Convert to MB
