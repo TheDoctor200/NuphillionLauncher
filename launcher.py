@@ -10,7 +10,6 @@ import time
 import collections
 from concurrent.futures import ThreadPoolExecutor
 from mod_cache import ModCache
-from offline_mod_creator import OfflineModCreator, create_standalone_offline_mod
 
 # Constants
 VERSION = '1_11_2931_2'
@@ -207,98 +206,14 @@ class ModManager:
             print(f"Restore error: {e}")
             return f"Restore failed: {str(e)}"
 
-    async def install_offline_mod(self, progress_callback, base_mod_content=None):
-        """Install offline mode mod (can be combined with Nuphillion or vanilla)"""
-        try:
-            self.ensure_directories()
-            progress_callback(0)
-            
-            status_text.value = "Creating offline mode configuration..."
-            quick_update()
-            
-            creator = OfflineModCreator()
-            
-            # Create temp offline mod
-            import tempfile
-            with tempfile.NamedTemporaryFile(delete=False, suffix='.zip') as tmp:
-                tmp_path = tmp.name
-            
-            if base_mod_content:
-                # Patch existing mod (Nuphillion) with offline mode
-                with tempfile.NamedTemporaryFile(delete=False, suffix='.zip') as base_tmp:
-                    base_tmp.write(base_mod_content)
-                    base_tmp_path = base_tmp.name
-                
-                success, message = creator.patch_existing_mod(base_tmp_path, tmp_path)
-                os.unlink(base_tmp_path)
-            else:
-                # Create standalone offline mod (vanilla)
-                success, message = creator.create_offline_mod_package(tmp_path, self.version)
-            
-            if not success:
-                os.unlink(tmp_path)
-                return f"Failed to create offline mod: {message}"
-            
-            progress_callback(50)
-            
-            # Read the created mod
-            with open(tmp_path, 'rb') as f:
-                content = f.read()
-            
-            os.unlink(tmp_path)
-            progress_callback(60)
-            
-            # Install the mod
-            self.mod_cleanup()
-            with zipfile.ZipFile(io.BytesIO(content)) as mod_zip:
-                files_to_extract = [f for f in mod_zip.namelist() 
-                                  if f.endswith('.pkg') or f.endswith('.xml')]
-                
-                if not files_to_extract:
-                    return "Invalid mod package: No valid files found"
-                
-                total_files = len(files_to_extract)
-                for i, name in enumerate(files_to_extract):
-                    if name.endswith('.pkg'):
-                        target_path = self.localPkgPath()
-                    else:
-                        target_path = self.localManifestPath()
 
-                    with mod_zip.open(name) as source, open(target_path, 'wb') as target:
-                        shutil.copyfileobj(source, target)
-                    
-                    progress = 60 + int((i + 1) / total_files * 40)
-                    progress_callback(progress)
+mod_manager = ModManager(appData)
 
-            if not self.local_mod_exists():
-                return "Installation failed: Files not properly installed"
-
-            return "Offline mode installed successfully!"
-            
-        except Exception as e:
-            print(f"Offline mod installation error: {e}")
-            return f"Offline mod installation failed: {str(e)}"
-
-    async def install_nuphillion_offline(self, progress_callback):
-        """Install Nuphillion mod with offline mode"""
-        try:
-            # First download Nuphillion mod
-            status_text.value = "Downloading Nuphillion mod..."
-            quick_update()
-            
-            mod_content = await self._download_file(RELEASE_URI)
-            if not mod_content:
-                return "Failed to download Nuphillion mod."
-            
-            progress_callback(30)
-            
-            # Apply offline patch
-            return await self.install_offline_mod(progress_callback, mod_content)
-            
-        except Exception as e:
-            return f"Failed to install Nuphillion offline: {str(e)}"
-
-# ...existing code...
+# Use absolute imports for local modules for script/flet build compatibility
+from win_utils import get_aumid, launch_app
+from update_utils import check_for_update
+from social_utils import SOCIAL_LINKS, open_social_links_section
+from launch_game_utils import launch_game_click
 
 def main(page: ft.Page):
     page.title = "Nuphillion Mod Manager"
@@ -588,7 +503,6 @@ def main(page: ft.Page):
 
     buttons = ft.Column([
         create_button("Install Mod", install_mod_click, "#00796B", ft.Icons.DOWNLOAD),
-        create_button("Install Offline Mode", install_offline_mod_click, "#00796B", ft.Icons.CLOUD_OFF),
         create_button("Uninstall Mod", uninstall_mod_click, "#D32F2F", ft.Icons.DELETE_FOREVER),
         create_button("Check Status", check_status_click, "#1976D2", ft.Icons.INFO),
         create_button("Update Launcher", update_app_click, "#FF9800", ft.Icons.UPGRADE),
