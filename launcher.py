@@ -618,6 +618,15 @@ def main(page: ft.Page):
     stack_children.append(content)
     if icon:
         stack_children.append(icon)
+        
+        # Use GIF for preview (simpler and more reliable than video)
+        video_widget = ft.Image(
+            src=os.path.join(ASSETS_DIR, "HaloWars2Preview.gif"),
+            width=sizes['preview_width'],
+            height=sizes['preview_height'],
+            fit=ft.ImageFit.COVER,
+        )
+        
         # Add bandwidth and size info under the icon (top left) with mica style
         stack_children.append(
             ft.Container(
@@ -630,15 +639,12 @@ def main(page: ft.Page):
                         padding=ft.padding.only(top=10)
                     ),
                     ft.Container(
-                        ft.Image(
-                            src=os.path.join(ASSETS_DIR, "HaloWars2Preview.gif"),
-                            width=sizes['preview_width'],
-                            height=sizes['preview_height'],
-                            fit=ft.ImageFit.CONTAIN,
-                            border_radius=18,
-                        ),
+                        content=video_widget,
+                        width=sizes['preview_width'],
+                        height=sizes['preview_height'],
+                        border_radius=18,
+                        clip_behavior=ft.ClipBehavior.ANTI_ALIAS,
                         padding=ft.padding.only(top=5, bottom=0),
-                        alignment=ft.alignment.center,
                     )
                 ], spacing=6),
                 left=20,
