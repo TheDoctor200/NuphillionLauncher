@@ -10,6 +10,7 @@ import time
 import collections
 from concurrent.futures import ThreadPoolExecutor
 from mod_cache import ModCache
+from offline_package_generator import OfflinePackageGenerator
 
 # Constants
 VERSION = '1_11_2931_2'
@@ -35,6 +36,12 @@ class ModManager:
         # Initialize mod cache
         cache_dir = os.path.join(appData, "NuphillionCache")
         self.mod_cache = ModCache(cache_dir)
+        
+        # Initialize offline package generator
+        self.offline_generator = OfflinePackageGenerator(cache_dir)
+        
+        # Track current mode (online/offline)
+        self.offline_mode = False
 
     def localPkgDir(self, version=None):
         return os.path.join(self.localStateDir, f"GTS\\{version or self.version}_active")
@@ -79,7 +86,7 @@ class ModManager:
             print(f"Download error: {e}")
             return None
 
-    async def install_mod(self, progress_callback):
+    async def install_mod(self, progress_callback, offline=False):
         try:
             self.ensure_directories()
             progress_callback(0)
@@ -91,30 +98,60 @@ class ModManager:
             cached_file = self.mod_cache.get_cached_file_path(mod_name)
             use_cache = False
             
-            if os.path.exists(cached_file) and not self.mod_cache.is_update_available(mod_name, remote_info):
-                # Use cached version
-                use_cache = True
-                with open(cached_file, 'rb') as f:
+            # Determine which package to use
+            if offline:
+                # Generate offline package if it doesn't exist
+                if not self.offline_generator.offline_package_exists(mod_name):
+                    # First ensure online version is cached
+                    if not os.path.exists(cached_file):
+                        content = await self._download_file(RELEASE_URI)
+                        if not content:
+                            return "Failed to download mod."
+                        with open(cached_file, 'wb') as f:
+                            f.write(content)
+                        if remote_info:
+                            self.mod_cache.update_cache(mod_name, remote_info)
+                    
+                    # Generate offline package
+                    progress_callback(10)
+                    try:
+                        await asyncio.get_running_loop().run_in_executor(
+                            self._executor,
+                            self.offline_generator.create_offline_package,
+                            mod_name
+                        )
+                    except Exception as e:
+                        return f"Failed to generate offline package: {str(e)}"
+                
+                # Use offline package
+                offline_pkg = self.offline_generator.get_package_path(mod_name, offline=True)
+                with open(offline_pkg, 'rb') as f:
                     content = f.read()
+                use_cache = True
+                self.offline_mode = True
                 progress_callback(20)
             else:
-                # Download new version
-                content = await self._download_file(RELEASE_URI)
-                if not content:
-                    return "Failed to download mod."
-                
-                # Clean up old versions before saving new one
-                self.mod_cache.cleanup_old_versions(mod_name, keep_current=False)
-                
-                # Save to cache
-                with open(cached_file, 'wb') as f:
-                    f.write(content)
-                
-                # Update cache info
-                if remote_info:
-                    self.mod_cache.update_cache(mod_name, remote_info)
-                
-                progress_callback(20)
+                # Online mode - use regular cached file or download
+                self.offline_mode = False
+                if os.path.exists(cached_file) and not self.mod_cache.is_update_available(mod_name, remote_info):
+                    use_cache = True
+                    with open(cached_file, 'rb') as f:
+                        content = f.read()
+                    progress_callback(20)
+                else:
+                    content = await self._download_file(RELEASE_URI)
+                    if not content:
+                        return "Failed to download mod."
+                    
+                    self.mod_cache.cleanup_old_versions(mod_name, keep_current=False)
+                    
+                    with open(cached_file, 'wb') as f:
+                        f.write(content)
+                    
+                    if remote_info:
+                        self.mod_cache.update_cache(mod_name, remote_info)
+                    
+                    progress_callback(20)
 
             self.mod_cleanup()
             with zipfile.ZipFile(io.BytesIO(content)) as mod_zip:
@@ -143,7 +180,7 @@ class ModManager:
             if not self.local_mod_exists():
                 return "Installation failed: Files not properly installed"
 
-            result_msg = "Mod installation complete!"
+            result_msg = f"Mod installation complete! ({'Offline' if offline else 'Online'} mode)"
             if use_cache:
                 result_msg += " (Used cached version)"
             return result_msg
@@ -152,7 +189,7 @@ class ModManager:
             print(f"Installation error: {e}")
             return f"Installation failed: {str(e)}"
 
-    async def restore_original_files(self, progress_callback):
+    async def restore_original_files(self, progress_callback, offline=False):
         try:
             progress_callback(0)
             
@@ -163,26 +200,55 @@ class ModManager:
             cached_file = self.mod_cache.get_cached_file_path(mod_name)
             use_cache = False
             
-            if os.path.exists(cached_file) and not self.mod_cache.is_update_available(mod_name, remote_info):
-                use_cache = True
-                with open(cached_file, 'rb') as f:
+            # Determine which package to use
+            if offline:
+                if not self.offline_generator.offline_package_exists(mod_name):
+                    if not os.path.exists(cached_file):
+                        content = await self._download_file(OG_FILES_URL)
+                        if not content:
+                            return "Failed to download original files."
+                        with open(cached_file, 'wb') as f:
+                            f.write(content)
+                        if remote_info:
+                            self.mod_cache.update_cache(mod_name, remote_info)
+                    
+                    progress_callback(10)
+                    try:
+                        await asyncio.get_running_loop().run_in_executor(
+                            self._executor,
+                            self.offline_generator.create_offline_package,
+                            mod_name
+                        )
+                    except Exception as e:
+                        return f"Failed to generate offline package: {str(e)}"
+                
+                offline_pkg = self.offline_generator.get_package_path(mod_name, offline=True)
+                with open(offline_pkg, 'rb') as f:
                     content = f.read()
+                use_cache = True
+                self.offline_mode = True
                 progress_callback(20)
             else:
-                content = await self._download_file(OG_FILES_URL)
-                if not content:
-                    return "Failed to download original files."
-                
-                # Clean up old versions before saving new one
-                self.mod_cache.cleanup_old_versions(mod_name, keep_current=False)
-                
-                with open(cached_file, 'wb') as f:
-                    f.write(content)
-                
-                if remote_info:
-                    self.mod_cache.update_cache(mod_name, remote_info)
-                
-                progress_callback(20)
+                self.offline_mode = False
+                if os.path.exists(cached_file) and not self.mod_cache.is_update_available(mod_name, remote_info):
+                    use_cache = True
+                    with open(cached_file, 'rb') as f:
+                        content = f.read()
+                    progress_callback(20)
+                else:
+                    content = await self._download_file(OG_FILES_URL)
+                    if not content:
+                        return "Failed to download original files."
+                    
+                    self.mod_cache.cleanup_old_versions(mod_name, keep_current=False)
+                    
+                    with open(cached_file, 'wb') as f:
+                        f.write(content)
+                    
+                    if remote_info:
+                        self.mod_cache.update_cache(mod_name, remote_info)
+                    
+                    progress_callback(20)
             
             # ...existing restore code...
             self.mod_cleanup()
@@ -197,7 +263,7 @@ class ModManager:
                     progress = 20 + int((i + 1) / total_files * 80)
                     progress_callback(progress)
 
-            result_msg = "Original files restored successfully!"
+            result_msg = f"Original files restored successfully! ({'Offline' if offline else 'Online'} mode)"
             if use_cache:
                 result_msg += " (Used cached version)"
             return result_msg
@@ -322,6 +388,9 @@ def main(page: ft.Page):
 
     # --- Download/Install/Uninstall cancellation state ---
     install_task = {"task": None, "cancel_event": None}
+    
+    # Track offline mode state
+    offline_mode_state = {"enabled": False}
 
     # --- Responsive sizing for small displays ---
     def get_responsive_sizes():
@@ -365,6 +434,13 @@ def main(page: ft.Page):
                 'social_top': 470
             }
 
+    # Define quick_update early so all functions can use it
+    def quick_update():
+        status_text.update()
+        progress_bar.update()
+        size_text.update()
+        bandwidth_text.update()
+
     async def install_mod_click(e):
         # Cancel any previous install if running
         if install_task["task"] and not install_task["task"].done():
@@ -379,7 +455,8 @@ def main(page: ft.Page):
         bandwidth_text.value = "Speed: 0.00 MB/s"
         quick_update()
 
-        status_text.value = "Installing mod..."
+        mode_text = "offline" if offline_mode_state["enabled"] else "online"
+        status_text.value = f"Installing mod ({mode_text} mode)..."
         progress_bar.value = 0
         quick_update()
 
@@ -430,12 +507,12 @@ def main(page: ft.Page):
             old_download_file = mod_manager._download_file
             mod_manager._download_file = patched_download_file
 
-            result = await mod_manager.install_mod(progress_callback)
+            result = await mod_manager.install_mod(progress_callback, offline=offline_mode_state["enabled"])
             if cancel_event.is_set():
                 status_text.value = "Installation cancelled."
             else:
                 status_text.value = result
-            mod_manager._download_file = old_download_file  # Restore original
+            mod_manager._download_file = old_download_file
             quick_update()
 
         install_task["task"] = asyncio.create_task(do_install())
@@ -447,18 +524,18 @@ def main(page: ft.Page):
             install_task["cancel_event"].set()
             await install_task["task"]
 
-        # Reset download statistics to zero
         size_text.value = "Downloaded: 0 MB"
         bandwidth_text.value = "Speed: 0.00 MB/s"
         quick_update()
 
-        status_text.value = "Restoring original files..."
+        mode_text = "offline" if offline_mode_state["enabled"] else "online"
+        status_text.value = f"Restoring original files ({mode_text} mode)..."
         progress_bar.value = 0
         quick_update()
         def progress_callback(value):
             progress_bar.value = value / 100
             quick_update()
-        result = await mod_manager.restore_original_files(progress_callback)
+        result = await mod_manager.restore_original_files(progress_callback, offline=offline_mode_state["enabled"])
         status_text.value = result
         quick_update()
 
@@ -477,6 +554,17 @@ def main(page: ft.Page):
     def open_discord(e):
         import webbrowser
         webbrowser.open("https://discord.gg/NeTyqrvbeY")
+
+    def toggle_offline_mode(e):
+        """Toggle between online and offline mode"""
+        offline_mode_state["enabled"] = not offline_mode_state["enabled"]
+        mode = "Offline" if offline_mode_state["enabled"] else "Online"
+        status_text.value = f"Switched to {mode} mode"
+        
+        # Update button text
+        e.control.text = f"Mode: {mode}"
+        e.control.bgcolor = "#FF6F00" if offline_mode_state["enabled"] else "#4CAF50"
+        quick_update()
 
     def create_button(text, on_click, color, icon=None):
         sizes = get_responsive_sizes()
@@ -501,15 +589,7 @@ def main(page: ft.Page):
             page=page
         )
 
-    buttons = ft.Column([
-        create_button("Install Mod", install_mod_click, "#00796B", ft.Icons.DOWNLOAD),
-        create_button("Uninstall Mod", uninstall_mod_click, "#D32F2F", ft.Icons.DELETE_FOREVER),
-        create_button("Check Status", check_status_click, "#1976D2", ft.Icons.INFO),
-        create_button("Update Launcher", update_app_click, "#FF9800", ft.Icons.UPGRADE),
-        create_button("Open Discord", open_discord, "#6200EE", ft.Icons.CHAT),
-    ], spacing=10, alignment=ft.MainAxisAlignment.CENTER)
-
-    # Get responsive sizes
+    # Get responsive sizes for initial setup
     sizes = get_responsive_sizes()
     
     # Update text elements with responsive sizing
@@ -517,6 +597,15 @@ def main(page: ft.Page):
     status_label = ft.Text("Status:", color="white", size=18, weight="bold")
     progress_bar = ft.ProgressBar(width=sizes['progress_width'], value=0, color="#97E9E6")
     status_text = ft.Text("", color="white", size=sizes['status_size'])
+
+    buttons = ft.Column([
+        create_button("Install Mod", install_mod_click, "#00796B", ft.Icons.DOWNLOAD),
+        create_button("Uninstall Mod", uninstall_mod_click, "#D32F2F", ft.Icons.DELETE_FOREVER),
+        create_button("Mode: Online", toggle_offline_mode, "#4CAF50", ft.Icons.WIFI),
+        create_button("Check Status", check_status_click, "#1976D2", ft.Icons.INFO),
+        create_button("Update Launcher", update_app_click, "#FF9800", ft.Icons.UPGRADE),
+        create_button("Open Discord", open_discord, "#6200EE", ft.Icons.CHAT),
+    ], spacing=10, alignment=ft.MainAxisAlignment.CENTER)
 
     # Center UI elements vertically and horizontally
     content = ft.Container(
@@ -644,7 +733,7 @@ def main(page: ft.Page):
                         height=sizes['preview_height'],
                         border_radius=18,
                         clip_behavior=ft.ClipBehavior.ANTI_ALIAS,
-                        padding=ft.padding.only(top=5, bottom=0),
+                        padding=ft.padding.only(top=10, bottom=0),
                     )
                 ], spacing=6),
                 left=20,
@@ -667,13 +756,6 @@ def main(page: ft.Page):
     stack_children.append(
         open_social_links_section(ASSETS_DIR, left=20, top=sizes['social_top'])
     )
-
-    # Define quick_update before any function that uses it
-    def quick_update():
-        status_text.update()
-        progress_bar.update()
-        size_text.update()
-        bandwidth_text.update()
 
     page.add(
         ft.Stack([
