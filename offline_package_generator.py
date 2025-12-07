@@ -18,27 +18,52 @@ class OfflinePackageGenerator:
     
     def modify_game_cfg(self, cfg_content):
         """Modify game.cfg to disable waypoint connections"""
-        try:
-            text = cfg_content.decode('utf-8')
-        except UnicodeDecodeError:
+        # Try different encodings
+        encodings = ['utf-8', 'utf-16', 'latin-1', 'cp1252']
+        text = None
+        used_encoding = None
+
+        for enc in encodings:
             try:
-                text = cfg_content.decode('latin-1')
-            except:
-                return cfg_content
+                text = cfg_content.decode(enc)
+                used_encoding = enc
+                break
+            except UnicodeDecodeError:
+                continue
         
-        lines = text.split('\n')
+        if text is None:
+            print("  Warning: Could not decode game.cfg with standard encodings.")
+            return cfg_content
+        
+        # Use splitlines(keepends=True) to preserve original line endings (CRLF/LF)
+        lines = text.splitlines(keepends=True)
         modified_lines = []
+        modifications_count = 0
         
         for line in lines:
             # Disable waypoint-related settings
-            if 'waypoint' in line.lower() and '=' in line:
-                key = line.split('=')[0].strip()
-                modified_lines.append(f"{key} = 0")
-                print(f"  Modified: {line.strip()} -> {key} = 0")
+            # Check for 'waypoint' and '=' and ensure it's not a comment
+            clean_line = line.strip()
+            if 'waypoint' in clean_line.lower() and '=' in clean_line and not clean_line.startswith('//') and not clean_line.startswith(';'):
+                parts = line.split('=')
+                key = parts[0].strip()
+                # We reconstruct the line with = 0, preserving the original line ending if possible
+                # or defaulting to \n if splitlines didn't keep it (though keepends=True should)
+                ending = ""
+                if line.endswith('\r\n'): ending = '\r\n'
+                elif line.endswith('\n'): ending = '\n'
+                else: ending = '\n'
+                
+                modified_lines.append(f"{key} = 0{ending}")
+                modifications_count += 1
+                print(f"  Modified: {clean_line} -> {key} = 0")
             else:
                 modified_lines.append(line)
         
-        return '\n'.join(modified_lines).encode('utf-8')
+        if modifications_count > 0:
+            return ''.join(modified_lines).encode(used_encoding)
+        else:
+            return cfg_content
     
     def create_offline_package(self, mod_name):
         """Create an offline version of a cached package"""
@@ -57,23 +82,31 @@ class OfflinePackageGenerator:
         with zipfile.ZipFile(base_path, 'r') as main_zip:
             with zipfile.ZipFile(offline_path, 'w', zipfile.ZIP_DEFLATED) as out_zip:
                 for item in main_zip.infolist():
-                    data = main_zip.read(item.filename)
-                    
-                    # Check if this is a .pkg file (which might be a nested zip)
-                    if item.filename.endswith('.pkg'):
-                        print(f"Processing {item.filename}...")
+                    try:
+                        data = main_zip.read(item.filename)
                         
-                        # Try to process as a nested zip
-                        if zipfile.is_zipfile(io.BytesIO(data)):
-                            modified_pkg, pkg_modified = self._modify_pkg_content(data, item.filename)
-                            if pkg_modified:
-                                data = modified_pkg
-                                modified = True
-                        else:
-                            print(f"  {item.filename} is not a zip file, keeping as-is")
-                    
-                    # Write the file (modified or original)
-                    out_zip.writestr(item, data)
+                        # Check if this is a .pkg file (which might be a nested zip)
+                        if item.filename.endswith('.pkg'):
+                            print(f"Processing {item.filename}...")
+                            
+                            # Try to process as a nested zip
+                            # We check magic bytes for PK zip header (50 4B 03 04) to avoid unnecessary exceptions
+                            if len(data) > 4 and data.startswith(b'PK\x03\x04'):
+                                try:
+                                    modified_pkg, pkg_modified = self._modify_pkg_content(data, item.filename)
+                                    if pkg_modified:
+                                        data = modified_pkg
+                                        modified = True
+                                except Exception as e:
+                                    print(f"  Failed to process nested pkg {item.filename}: {e}")
+                            else:
+                                print(f"  {item.filename} is not a zip file (magic bytes mismatch), keeping as-is")
+                        
+                        # Write the file (modified or original)
+                        out_zip.writestr(item, data)
+                    except Exception as e:
+                        print(f"Error processing file {item.filename} in main zip: {e}")
+                        # Try to continue with other files if one fails
         
         if modified:
             print(f"Successfully created offline package: {offline_path}")

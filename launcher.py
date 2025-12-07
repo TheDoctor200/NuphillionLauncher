@@ -395,44 +395,37 @@ def main(page: ft.Page):
     # --- Responsive sizing for small displays ---
     def get_responsive_sizes():
         """Get responsive sizes based on window dimensions"""
-        window_width = page.window_width or 1200
-        window_height = page.window_height or 800
+        # Base dimensions used for design (approximate)
+        base_w = 1500
+        base_h = 844
         
-        # Determine if we're on a small display
-        is_small_display = window_width < 1000 or window_height < 700
+        curr_w = page.window_width or base_w
+        curr_h = page.window_height or base_h
         
-        if is_small_display:
-            return {
-                'button_width': 200,
-                'button_height': 45,
-                'title_size': 20,
-                'quote_size': 12,
-                'status_size': 14,
-                'progress_width': 400,
-                'stats_width': 180,
-                'preview_width': 150,
-                'preview_height': 100,
-                'icon_size': 60,
-                'content_padding': 40,
-                'stats_top': 120,
-                'social_top': 400
-            }
-        else:
-            return {
-                'button_width': 250,
-                'button_height': 50,
-                'title_size': 24,
-                'quote_size': 14,
-                'status_size': 16,
-                'progress_width': 500,
-                'stats_width': 220,
-                'preview_width': 180,
-                'preview_height': 120,
-                'icon_size': 80,
-                'content_padding': 80,
-                'stats_top': 150,
-                'social_top': 470
-            }
+        # Calculate scale factors
+        scale_w = curr_w / base_w
+        scale_h = curr_h / base_h
+        
+        # Use a general scale for elements that should maintain aspect ratio or text size
+        scale = min(scale_w, scale_h)
+        # Clamp scale to avoid UI becoming unusable
+        scale = max(0.6, min(scale, 1.2))
+
+        return {
+            'button_width': int(250 * scale),
+            'button_height': int(50 * scale),
+            'title_size': int(24 * scale),
+            'quote_size': int(14 * scale),
+            'status_size': int(16 * scale),
+            'progress_width': int(500 * scale),
+            'stats_width': int(220 * scale),
+            'preview_width': int(180 * scale),
+            'preview_height': int(120 * scale),
+            'icon_size': int(80 * scale),
+            'content_padding': int(80 * scale_h),
+            'stats_top': int(150 * scale_h),
+            'social_top': int(470 * scale_h)
+        }
 
     # Define quick_update early so all functions can use it
     def quick_update():
@@ -628,10 +621,12 @@ def main(page: ft.Page):
             ),
         ],
         alignment=ft.MainAxisAlignment.CENTER,
-        horizontal_alignment=ft.CrossAxisAlignment.CENTER
+        horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+        scroll=ft.ScrollMode.AUTO,  # Enable scrolling for small screens
         ),
         alignment=ft.alignment.center,
         padding=ft.padding.only(top=sizes['content_padding']),
+        expand=True,  # Expand to fill available space
     )
 
     stack_children = []
@@ -640,51 +635,53 @@ def main(page: ft.Page):
         stack_children.append(dynamic_bg)
         def on_resize(e):
             # Update responsive sizing when window is resized
-            global sizes
-            sizes = get_responsive_sizes()
+            new_sizes = get_responsive_sizes()
             
             # Update UI elements with new sizes
-            status_quote.size = sizes['quote_size']
-            status_text.size = sizes['status_size']
-            progress_bar.width = sizes['progress_width']
+            status_quote.size = new_sizes['quote_size']
+            status_text.size = new_sizes['status_size']
+            progress_bar.width = new_sizes['progress_width']
             
             # Update content container padding
-            content.padding = ft.padding.only(top=sizes['content_padding'])
+            content.padding = ft.padding.only(top=new_sizes['content_padding'])
             
             # Update icon size if it exists
             if icon:
-                icon.content.width = sizes['icon_size']
-                icon.content.height = sizes['icon_size']
+                icon.content.width = new_sizes['icon_size']
+                icon.content.height = new_sizes['icon_size']
             
             # Update stats container positioning and sizing
             for child in stack_children:
-                if hasattr(child, 'left') and child.left == 20:  # Stats container
-                    child.top = sizes['stats_top']
-                    child.width = sizes['stats_width']
-                    # Update preview image size
-                    for col_child in child.content.controls:
-                        if hasattr(col_child, 'content') and hasattr(col_child.content, 'width'):
-                            if col_child.content.width == sizes['preview_width']:  # Preview image
-                                col_child.content.width = sizes['preview_width']
-                                col_child.content.height = sizes['preview_height']
-                                break
-            
-            # Update social links positioning
-            for child in stack_children:
-                if hasattr(child, 'left') and child.left == 20 and hasattr(child, 'top') and child.top == sizes['social_top']:
-                    child.top = sizes['social_top']
-                    break
+                if isinstance(child, ft.Container) and child.left == 20:
+                    # Check content type to distinguish stats from social
+                    if isinstance(child.content, ft.Column):
+                        # Stats container
+                        child.top = new_sizes['stats_top']
+                        child.width = new_sizes['stats_width']
+                        # Update preview image size (last element in column)
+                        col_controls = child.content.controls
+                        if len(col_controls) >= 5:
+                            preview_container = col_controls[4]
+                            if isinstance(preview_container, ft.Container):
+                                preview_container.width = new_sizes['preview_width']
+                                preview_container.height = new_sizes['preview_height']
+                                if isinstance(preview_container.content, ft.Image):
+                                    preview_container.content.width = new_sizes['preview_width']
+                                    preview_container.content.height = new_sizes['preview_height']
+                    elif isinstance(child.content, ft.Row):
+                        # Social container
+                        child.top = new_sizes['social_top']
             
             # Update button sizes
             for button in buttons.controls:
-                button.width = sizes['button_width']
-                button.height = sizes['button_height']
+                button.width = new_sizes['button_width']
+                button.height = new_sizes['button_height']
             
             # Update title size
-            for child in content.content.controls:
-                if hasattr(child, 'size') and child.size == sizes['title_size']:
-                    child.size = sizes['title_size']
-                    break
+            if len(content.content.controls) > 0:
+                title_text = content.content.controls[0]
+                if isinstance(title_text, ft.Text):
+                    title_text.size = new_sizes['title_size']
             
             dynamic_bg.resize(page.window_width, page.window_height)
             page.update()  # Force the app to update on every resize
@@ -700,8 +697,9 @@ def main(page: ft.Page):
                 height=sizes['icon_size'],
                 fit=ft.ImageFit.CONTAIN,
             ),
-            alignment=ft.alignment.top_left,
             padding=20,
+            left=0,
+            top=0,
         )
 
     stack_children.append(content)
@@ -760,7 +758,7 @@ def main(page: ft.Page):
     page.add(
         ft.Stack([
             *stack_children,
-        ])
+        ], expand=True)  # Ensure stack expands to fill window
     )
 
 ft.app(target=main)
