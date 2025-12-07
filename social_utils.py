@@ -24,7 +24,7 @@ def open_social_link(url):
         import webbrowser
         webbrowser.open(url)
 
-def open_social_links_section(assets_dir, left=20, top=470):
+def open_social_links_section(assets_dir, left=None, top=470, right=None):
     # Returns a Flet Container with the social links section
     return ft.Container(
         content=ft.Column([
@@ -97,6 +97,7 @@ def open_social_links_section(assets_dir, left=20, top=470):
         ),
         left=left,
         top=top,
+        right=right,
         width=220,
         bgcolor=None,
         border_radius=None,
