@@ -459,8 +459,9 @@ def main(page: ft.Page):
 
         # Use GIF aspect to compute height from width (fallback to 1.5 = 180/120)
         aspect = preview_aspect if preview_aspect else 1.5
-        preview_width = int(240 * scale)  # was 220; larger preview
+        preview_width = int(180 * scale)
         preview_height = int(preview_width / aspect)
+
         return {
             'button_width': int(250 * scale),
             'button_height': int(50 * scale),
@@ -473,7 +474,7 @@ def main(page: ft.Page):
             'preview_height': preview_height,
             'icon_size': int(80 * scale),
             'content_padding': int(80 * scale_h),
-            'stats_top': int(120 * scale_h),  # was 150; moved up a bit
+            'stats_top': int(150 * scale_h),
             'social_top': int(470 * scale_h)
         }
 
@@ -630,15 +631,15 @@ def main(page: ft.Page):
     #     e.control.bgcolor = "#FF6F00" if offline_mode_state["enabled"] else "#4CAF50"
     #     quick_update()
 
-    def create_button(text, on_click, color, icon=None):
+    def create_button(text, on_click, color, icon=None, width_override=None, height_override=None):
         sizes = get_responsive_sizes()
         return ft.ElevatedButton(
             text,
             on_click=on_click,
             bgcolor=color,
             color="white",
-            width=sizes['button_width'],
-            height=sizes['button_height'],
+            width=width_override or sizes['button_width'],
+            height=height_override or sizes['button_height'],
             icon=icon,
             icon_color="white" if icon else None
         )
@@ -729,6 +730,7 @@ def main(page: ft.Page):
                     if isinstance(child.content, ft.Column):
                         # Stats container
                         child.top = new_sizes['stats_top']
+                        child.width = new_sizes['stats_width']
                         # Update preview image size (last element in column)
                         col_controls = child.content.controls
                         if len(col_controls) >= 5:
@@ -793,9 +795,17 @@ def main(page: ft.Page):
                     size_text,
                     bandwidth_text,
                     ft.Container(
-                        create_button("Launch Game", launch_game_click_handler, "#43A047", ft.Icons.PLAY_ARROW),
-                        padding=ft.padding.only(top=12)
+                        create_button(
+                            "Launch Game",
+                            launch_game_click_handler,
+                            "#43A047",
+                            ft.Icons.PLAY_ARROW,
+                            width_override=int(get_responsive_sizes()['button_width'] * 0.55),  # tiny bit broader
+                            height_override=int(get_responsive_sizes()['button_height'] * 0.85),  # keep fat
+                        ),
+                        padding=ft.padding.only(top=8, bottom=28)
                     ),
+                    # Center the GIF inside a rounded container
                     ft.Container(
                         content=video_widget,
                         width=sizes['preview_width'],
@@ -803,9 +813,9 @@ def main(page: ft.Page):
                         alignment=ft.alignment.center,
                         border_radius=18,
                         clip_behavior=ft.ClipBehavior.ANTI_ALIAS,
-                        padding=ft.padding.only(top=18),  # increased gap below button
+                        padding=ft.padding.all(0),
                     )
-                ], spacing=8),
+                ], spacing=6),
                 left=20,
                 top=sizes['stats_top'],
                 width=sizes['stats_width'],
