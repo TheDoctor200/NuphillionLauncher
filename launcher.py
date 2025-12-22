@@ -340,6 +340,18 @@ def main(page: ft.Page):
     icon_path = os.path.join(ASSETS_DIR, "The_Vanquished.png")
     favicon_path = os.path.join(ASSETS_DIR, "favicon.ico")
     VERSION_FILE = os.path.join(BASE_DIR, "version.txt")
+    # Add: preview GIF path and aspect detection
+    preview_gif_path = os.path.join(ASSETS_DIR, "HaloWars2Preview.gif")
+    preview_aspect = None  # width / height
+    if os.path.exists(preview_gif_path):
+        try:
+            from PIL import Image
+            with Image.open(preview_gif_path) as img:
+                w, h = img.size
+                if w > 0 and h > 0:
+                    preview_aspect = w / h
+        except Exception:
+            pass
 
     # Set window icon, app icon, and tray icon (if supported)
     if os.path.exists(favicon_path):
@@ -445,6 +457,10 @@ def main(page: ft.Page):
         # Clamp scale to avoid UI becoming unusable
         scale = max(0.6, min(scale, 1.2))
 
+        # Use GIF aspect to compute height from width (fallback to 1.5 = 180/120)
+        aspect = preview_aspect if preview_aspect else 1.5
+        preview_width = int(240 * scale)  # was 220; larger preview
+        preview_height = int(preview_width / aspect)
         return {
             'button_width': int(250 * scale),
             'button_height': int(50 * scale),
@@ -453,11 +469,11 @@ def main(page: ft.Page):
             'status_size': int(16 * scale),
             'progress_width': int(500 * scale),
             'stats_width': int(220 * scale),
-            'preview_width': int(180 * scale),
-            'preview_height': int(120 * scale),
+            'preview_width': preview_width,
+            'preview_height': preview_height,
             'icon_size': int(80 * scale),
             'content_padding': int(80 * scale_h),
-            'stats_top': int(150 * scale_h),
+            'stats_top': int(120 * scale_h),  # was 150; moved up a bit
             'social_top': int(470 * scale_h)
         }
 
@@ -713,7 +729,6 @@ def main(page: ft.Page):
                     if isinstance(child.content, ft.Column):
                         # Stats container
                         child.top = new_sizes['stats_top']
-                        child.width = new_sizes['stats_width']
                         # Update preview image size (last element in column)
                         col_controls = child.content.controls
                         if len(col_controls) >= 5:
@@ -762,12 +777,12 @@ def main(page: ft.Page):
     if icon:
         stack_children.append(icon)
         
-        # Use GIF for preview (simpler and more reliable than video)
+        # Use GIF for preview (centered and not cropped)
         video_widget = ft.Image(
-            src=os.path.join(ASSETS_DIR, "HaloWars2Preview.gif"),
+            src=preview_gif_path,
             width=sizes['preview_width'],
             height=sizes['preview_height'],
-            fit=ft.ImageFit.COVER,
+            fit=ft.ImageFit.CONTAIN,  # was COVER; CONTAIN prevents cropping
         )
         
         # Add bandwidth and size info under the icon (top left) with mica style
@@ -779,17 +794,18 @@ def main(page: ft.Page):
                     bandwidth_text,
                     ft.Container(
                         create_button("Launch Game", launch_game_click_handler, "#43A047", ft.Icons.PLAY_ARROW),
-                        padding=ft.padding.only(top=10)
+                        padding=ft.padding.only(top=12)
                     ),
                     ft.Container(
                         content=video_widget,
                         width=sizes['preview_width'],
                         height=sizes['preview_height'],
+                        alignment=ft.alignment.center,
                         border_radius=18,
                         clip_behavior=ft.ClipBehavior.ANTI_ALIAS,
-                        padding=ft.padding.only(top=10, bottom=0),
+                        padding=ft.padding.only(top=18),  # increased gap below button
                     )
-                ], spacing=6),
+                ], spacing=8),
                 left=20,
                 top=sizes['stats_top'],
                 width=sizes['stats_width'],
