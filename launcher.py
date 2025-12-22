@@ -86,6 +86,41 @@ class ModManager:
             print(f"Download error: {e}")
             return None
 
+    # Add: ensure latest cache for the mod
+    async def ensure_latest_mod_cache(self, progress_callback=None):
+        try:
+            mod_name = "nuphillion"
+            if progress_callback:
+                progress_callback(0)
+            remote_info = self.mod_cache.get_remote_version_info(RELEASE_URI)
+            cached_file = self.mod_cache.get_cached_file_path(mod_name)
+
+            up_to_date = os.path.exists(cached_file) and not self.mod_cache.is_update_available(mod_name, remote_info)
+            if up_to_date:
+                if progress_callback:
+                    progress_callback(100)
+                return False  # no update performed
+
+            content = await self._download_file(RELEASE_URI)
+            if not content:
+                raise RuntimeError("Failed to download mod.")
+
+            # Replace cached content with latest
+            self.mod_cache.cleanup_old_versions(mod_name, keep_current=False)
+            with open(cached_file, 'wb') as f:
+                f.write(content)
+            if remote_info:
+                self.mod_cache.update_cache(mod_name, remote_info)
+
+            if progress_callback:
+                progress_callback(100)
+            return True  # update performed
+        except Exception as e:
+            print(f"Cache update error: {e}")
+            if progress_callback:
+                progress_callback(0)
+            return False
+
     async def install_mod(self, progress_callback, offline=False):
         try:
             self.ensure_directories()
@@ -180,7 +215,8 @@ class ModManager:
             if not self.local_mod_exists():
                 return "Installation failed: Files not properly installed"
 
-            result_msg = f"Mod installation complete! ({'Offline' if offline else 'Online'} mode)"
+            # Removed mode suffix from message
+            result_msg = "Mod installation complete!"
             if use_cache:
                 result_msg += " (Used cached version)"
             return result_msg
@@ -263,7 +299,8 @@ class ModManager:
                     progress = 20 + int((i + 1) / total_files * 80)
                     progress_callback(progress)
 
-            result_msg = f"Original files restored successfully! ({'Offline' if offline else 'Online'} mode)"
+            # Removed mode suffix from message
+            result_msg = "Original files restored successfully!"
             if use_cache:
                 result_msg += " (Used cached version)"
             return result_msg
@@ -389,9 +426,6 @@ def main(page: ft.Page):
     # --- Download/Install/Uninstall cancellation state ---
     install_task = {"task": None, "cancel_event": None}
     
-    # Track offline mode state
-    offline_mode_state = {"enabled": False}
-
     # --- Responsive sizing for small displays ---
     def get_responsive_sizes():
         """Get responsive sizes based on window dimensions"""
@@ -448,8 +482,9 @@ def main(page: ft.Page):
         bandwidth_text.value = "Speed: 0.00 MB/s"
         quick_update()
 
-        mode_text = "offline" if offline_mode_state["enabled"] else "online"
-        status_text.value = f"Installing mod ({mode_text} mode)..."
+        # Removed mode-related text
+        # mode_text = "offline" if offline_mode_state["enabled"] else "online"
+        status_text.value = "Installing mod..."
         progress_bar.value = 0
         quick_update()
 
@@ -500,7 +535,8 @@ def main(page: ft.Page):
             old_download_file = mod_manager._download_file
             mod_manager._download_file = patched_download_file
 
-            result = await mod_manager.install_mod(progress_callback, offline=offline_mode_state["enabled"])
+            # Always use online mode
+            result = await mod_manager.install_mod(progress_callback, offline=False)
             if cancel_event.is_set():
                 status_text.value = "Installation cancelled."
             else:
@@ -521,14 +557,15 @@ def main(page: ft.Page):
         bandwidth_text.value = "Speed: 0.00 MB/s"
         quick_update()
 
-        mode_text = "offline" if offline_mode_state["enabled"] else "online"
-        status_text.value = f"Restoring original files ({mode_text} mode)..."
+        # Removed mode-related text
+        status_text.value = "Restoring original files..."
         progress_bar.value = 0
         quick_update()
         def progress_callback(value):
             progress_bar.value = value / 100
             quick_update()
-        result = await mod_manager.restore_original_files(progress_callback, offline=offline_mode_state["enabled"])
+        # Always use online mode
+        result = await mod_manager.restore_original_files(progress_callback, offline=False)
         status_text.value = result
         quick_update()
 
@@ -536,11 +573,28 @@ def main(page: ft.Page):
         await check_for_update(page, status_text, progress_bar, quick_update)
 
     async def check_status_click(e):
+        # Show update check progress and refresh cache if needed
+        status_text.value = "Checking cached mod version..."
+        progress_bar.value = 0
+        quick_update()
+
+        def progress_callback(value):
+            progress_bar.value = value / 100
+            quick_update()
+
+        updated = await mod_manager.ensure_latest_mod_cache(progress_callback)
+
+        if updated:
+            status_text.value = "Cache updated to latest."
+        else:
+            status_text.value = "Cache is up-to-date."
+
+        # Report local installation status
         if mod_manager.local_mod_exists():
-            status_text.value = "Mod is installed and up-to-date!" if mod_manager.version == VERSION else "Mod is outdated. Update available."
+            status_text.value += " Mod is installed and up-to-date!" if mod_manager.version == VERSION else " Mod is outdated. Update available."
             progress_bar.value = 1.0
         else:
-            status_text.value = "Mod is not installed."
+            status_text.value += " Mod is not installed."
             progress_bar.value = 0.0
         quick_update()
 
@@ -548,16 +602,17 @@ def main(page: ft.Page):
         import webbrowser
         webbrowser.open("https://discord.gg/NeTyqrvbeY")
 
-    def toggle_offline_mode(e):
-        """Toggle between online and offline mode"""
-        offline_mode_state["enabled"] = not offline_mode_state["enabled"]
-        mode = "Offline" if offline_mode_state["enabled"] else "Online"
-        status_text.value = f"Switched to {mode} mode"
-        
-        # Update button text
-        e.control.text = f"Mode: {mode}"
-        e.control.bgcolor = "#FF6F00" if offline_mode_state["enabled"] else "#4CAF50"
-        quick_update()
+    # Removed toggle_offline_mode handler
+    # def toggle_offline_mode(e):
+    #     """Toggle between online and offline mode"""
+    #     offline_mode_state["enabled"] = not offline_mode_state["enabled"]
+    #     mode = "Offline" if offline_mode_state["enabled"] else "Online"
+    #     status_text.value = f"Switched to {mode} mode"
+    #     
+    #     # Update button text
+    #     e.control.text = f"Mode: {mode}"
+    #     e.control.bgcolor = "#FF6F00" if offline_mode_state["enabled"] else "#4CAF50"
+    #     quick_update()
 
     def create_button(text, on_click, color, icon=None):
         sizes = get_responsive_sizes()
@@ -594,7 +649,8 @@ def main(page: ft.Page):
     buttons = ft.Column([
         create_button("Install Mod", install_mod_click, "#00796B", ft.Icons.DOWNLOAD),
         create_button("Uninstall Mod", uninstall_mod_click, "#D32F2F", ft.Icons.DELETE_FOREVER),
-        create_button("Mode: Online", toggle_offline_mode, "#4CAF50", ft.Icons.WIFI),
+        # Removed "Mode: Online" button
+        # create_button("Mode: Online", toggle_offline_mode, "#4CAF50", ft.Icons.WIFI),
         create_button("Check Status", check_status_click, "#1976D2", ft.Icons.INFO),
         create_button("Update Launcher", update_app_click, "#FF9800", ft.Icons.UPGRADE),
         create_button("Open Discord", open_discord, "#6200EE", ft.Icons.CHAT),
