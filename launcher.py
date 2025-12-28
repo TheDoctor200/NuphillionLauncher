@@ -9,6 +9,8 @@ import sys
 import time
 import collections
 from concurrent.futures import ThreadPoolExecutor
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 from mod_cache import ModCache
 from offline_package_generator import OfflinePackageGenerator
 
@@ -43,6 +45,53 @@ class ModManager:
         # Track current mode (online/offline)
         self.offline_mode = False
 
+        # Setup retry-enabled HTTP session
+        retry = Retry(
+            total=3,
+            backoff_factor=1,
+            status_forcelist=[429, 500, 502, 503, 504],
+            allowed_methods=["GET"],
+            raise_on_status=False,
+        )
+        adapter = HTTPAdapter(max_retries=retry)
+        self.http = requests.Session()
+        self.http.mount("https://", adapter)
+        self.http.mount("http://", adapter)
+
+    def _refresh_cache_metadata(self, mod_name, url, remote_info):
+        latest = remote_info or self.mod_cache.get_remote_version_info(url)
+        if latest:
+            self.mod_cache.update_cache(mod_name, latest)
+        return latest
+
+    def _is_cache_current(self, mod_name, remote_info, cached_file):
+        """Check if cached file exists and is current version"""
+        # First check if file exists at all
+        if not os.path.exists(cached_file):
+            print(f"Cache miss: {cached_file} does not exist")
+            return False
+        
+        # Check file size if we have remote info
+        if remote_info:
+            expected_size = remote_info.get("asset_size") or remote_info.get("content_length")
+            if expected_size:
+                try:
+                    actual_size = os.path.getsize(cached_file)
+                    if actual_size != expected_size:
+                        print(f"Cache size mismatch: expected {expected_size}, got {actual_size}")
+                        return False
+                except OSError as e:
+                    print(f"Error checking file size: {e}")
+                    return False
+        
+        # Finally check if there's an update available
+        if self.mod_cache.is_update_available(mod_name, remote_info):
+            print(f"Update available for {mod_name}")
+            return False
+        
+        print(f"Using cached version of {mod_name}")
+        return True
+
     def localPkgDir(self, version=None):
         return os.path.join(self.localStateDir, f"GTS\\{version or self.version}_active")
 
@@ -75,19 +124,28 @@ class ModManager:
             raise
 
     async def _download_file(self, url):
+        def _fetch():
+            resp = self.http.get(url, timeout=20, stream=True)
+            resp.raise_for_status()
+            try:
+                return resp.content
+            finally:
+                resp.close()
         try:
-            response = await asyncio.get_running_loop().run_in_executor(
-                self._executor,
-                lambda: requests.get(url, timeout=10, stream=True)
-            )
-            response.raise_for_status()
-            return response.content
-        except Exception as e:
+            return await asyncio.get_running_loop().run_in_executor(self._executor, _fetch)
+        except requests.exceptions.ConnectionError as e:
+            print(f"Network connection error during download: {e}")
+            return None
+        except requests.exceptions.Timeout as e:
+            print(f"Download timeout: {e}")
+            return None
+        except requests.RequestException as e:
             print(f"Download error: {e}")
             return None
 
     # Add: ensure latest cache for the mod
     async def ensure_latest_mod_cache(self, progress_callback=None):
+        """Check if update is available without downloading"""
         try:
             mod_name = "nuphillion"
             if progress_callback:
@@ -95,28 +153,15 @@ class ModManager:
             remote_info = self.mod_cache.get_remote_version_info(RELEASE_URI)
             cached_file = self.mod_cache.get_cached_file_path(mod_name)
 
-            up_to_date = os.path.exists(cached_file) and not self.mod_cache.is_update_available(mod_name, remote_info)
-            if up_to_date:
-                if progress_callback:
-                    progress_callback(100)
-                return False  # no update performed
-
-            content = await self._download_file(RELEASE_URI)
-            if not content:
-                raise RuntimeError("Failed to download mod.")
-
-            # Replace cached content with latest
-            self.mod_cache.cleanup_old_versions(mod_name, keep_current=False)
-            with open(cached_file, 'wb') as f:
-                f.write(content)
-            if remote_info:
-                self.mod_cache.update_cache(mod_name, remote_info)
-
+            cache_current = self._is_cache_current(mod_name, remote_info, cached_file)
+            
             if progress_callback:
                 progress_callback(100)
-            return True  # update performed
+            
+            # Return True if update is available (cache is NOT current)
+            return not cache_current
         except Exception as e:
-            print(f"Cache update error: {e}")
+            print(f"Cache check error: {e}")
             if progress_callback:
                 progress_callback(0)
             return False
@@ -144,8 +189,7 @@ class ModManager:
                             return "Failed to download mod."
                         with open(cached_file, 'wb') as f:
                             f.write(content)
-                        if remote_info:
-                            self.mod_cache.update_cache(mod_name, remote_info)
+                        remote_info = self._refresh_cache_metadata(mod_name, RELEASE_URI, remote_info)
                     
                     # Generate offline package
                     progress_callback(10)
@@ -168,7 +212,7 @@ class ModManager:
             else:
                 # Online mode - use regular cached file or download
                 self.offline_mode = False
-                if os.path.exists(cached_file) and not self.mod_cache.is_update_available(mod_name, remote_info):
+                if self._is_cache_current(mod_name, remote_info, cached_file):
                     use_cache = True
                     with open(cached_file, 'rb') as f:
                         content = f.read()
@@ -183,9 +227,7 @@ class ModManager:
                     with open(cached_file, 'wb') as f:
                         f.write(content)
                     
-                    if remote_info:
-                        self.mod_cache.update_cache(mod_name, remote_info)
-                    
+                    remote_info = self._refresh_cache_metadata(mod_name, RELEASE_URI, remote_info)
                     progress_callback(20)
 
             self.mod_cleanup()
@@ -245,8 +287,7 @@ class ModManager:
                             return "Failed to download original files."
                         with open(cached_file, 'wb') as f:
                             f.write(content)
-                        if remote_info:
-                            self.mod_cache.update_cache(mod_name, remote_info)
+                        remote_info = self._refresh_cache_metadata(mod_name, OG_FILES_URL, remote_info)
                     
                     progress_callback(10)
                     try:
@@ -266,7 +307,7 @@ class ModManager:
                 progress_callback(20)
             else:
                 self.offline_mode = False
-                if os.path.exists(cached_file) and not self.mod_cache.is_update_available(mod_name, remote_info):
+                if self._is_cache_current(mod_name, remote_info, cached_file):
                     use_cache = True
                     with open(cached_file, 'rb') as f:
                         content = f.read()
@@ -275,15 +316,10 @@ class ModManager:
                     content = await self._download_file(OG_FILES_URL)
                     if not content:
                         return "Failed to download original files."
-                    
                     self.mod_cache.cleanup_old_versions(mod_name, keep_current=False)
-                    
                     with open(cached_file, 'wb') as f:
                         f.write(content)
-                    
-                    if remote_info:
-                        self.mod_cache.update_cache(mod_name, remote_info)
-                    
+                    remote_info = self._refresh_cache_metadata(mod_name, OG_FILES_URL, remote_info)
                     progress_callback(20)
             
             # ...existing restore code...
@@ -511,7 +547,7 @@ def main(page: ft.Page):
 
         async def download_file_with_bandwidth(url, callback):
             loop = asyncio.get_running_loop()
-            with requests.get(url, stream=True, timeout=30) as r:
+            with mod_manager.http.get(url, stream=True, timeout=30) as r:
                 r.raise_for_status()
                 total = int(r.headers.get('content-length', 0))
                 downloaded = 0
@@ -590,8 +626,8 @@ def main(page: ft.Page):
         await check_for_update(page, status_text, progress_bar, quick_update)
 
     async def check_status_click(e):
-        # Show update check progress and refresh cache if needed
-        status_text.value = "Checking cached mod version..."
+        # Show update check progress
+        status_text.value = "Checking for mod updates..."
         progress_bar.value = 0
         quick_update()
 
@@ -599,19 +635,20 @@ def main(page: ft.Page):
             progress_bar.value = value / 100
             quick_update()
 
-        updated = await mod_manager.ensure_latest_mod_cache(progress_callback)
+        update_available = await mod_manager.ensure_latest_mod_cache(progress_callback)
 
-        if updated:
-            status_text.value = "Cache updated to latest."
-        else:
-            status_text.value = "Cache is up-to-date."
-
-        # Report local installation status
+        # Report local installation status and update availability
         if mod_manager.local_mod_exists():
-            status_text.value += " Mod is installed and up-to-date!" if mod_manager.version == VERSION else " Mod is outdated. Update available."
+            if update_available:
+                status_text.value = "Mod is installed. Update available - click Install Mod to update."
+            else:
+                status_text.value = "Mod is installed and up-to-date!"
             progress_bar.value = 1.0
         else:
-            status_text.value += " Mod is not installed."
+            if update_available:
+                status_text.value = "Mod is not installed. Update available."
+            else:
+                status_text.value = "Mod is not installed."
             progress_bar.value = 0.0
         quick_update()
 
